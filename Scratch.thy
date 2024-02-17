@@ -165,7 +165,6 @@ next
   thus ?thesis using A1 MUX_right by simp
 qed
 
-
 (* The implementation of DMUX is not as important as its defining properties,
 which we prove immediately and add to the simplification tactic. *)
 definition DMUX :: \<open>bit \<Rightarrow> bit \<Rightarrow> (bit * bit)\<close>
@@ -182,5 +181,159 @@ proof
   show "fst (DMUX i 1) = fst(0,i)" by (simp add: DMUX_def)
   show "snd (DMUX i 1) = snd (0, i)" using AND_a_1 by (simp add: DMUX_def)
 qed
+
+section \<open>Hexadecimal and Machine words\<close>
+text \<open>Since the book associated with Nand2Tetris uses Big Endian convention, I follow their
+convention. Realistically, we should refactor this out, so as to force the user to import
+their desired Endianess.\<close>
+
+lemma "0xFF = 255" by (rule refl)
+
+datatype Hex = Hex bit bit bit bit
+
+instantiation Hex :: zero_neq_one
+begin
+
+definition zero_Hex :: Hex
+  where \<open>0 = Hex 0 0 0 0\<close>
+
+definition one_Hex :: Hex
+  where \<open>1 = Hex 0 0 0 1\<close>
+
+instance
+  by standard (simp add: one_Hex_def zero_Hex_def)
+end
+
+abbreviation Two_Hex :: Hex ("2")
+  where \<open>2 \<equiv> Hex 0 0 1 0\<close>
+
+abbreviation Three_Hex :: Hex ("3")
+  where \<open>3 \<equiv> Hex 0 0 1 1\<close>
+
+abbreviation Four_Hex :: Hex ("4")
+  where \<open>4 \<equiv> Hex 0 1 0 0\<close>
+
+abbreviation Five_Hex :: Hex ("5")
+  where \<open>5 \<equiv> Hex 0 1 0 1\<close>
+
+abbreviation Six_Hex :: Hex ("6")
+  where \<open>6 \<equiv> Hex 0 1 1 0\<close>
+
+abbreviation Seven_Hex :: Hex ("7")
+  where \<open>7 \<equiv> Hex 0 1 1 1\<close>
+
+abbreviation Eight_Hex :: Hex ("8")
+  where \<open>8 \<equiv> Hex 1 0 0 0\<close>
+
+abbreviation A_Hex :: Hex ("A")
+  where \<open>A \<equiv> Hex 1 0 1 0\<close>
+
+abbreviation B_Hex :: Hex ("B")
+  where \<open>B \<equiv> Hex 1 0 1 1\<close>
+
+abbreviation C_Hex :: Hex ("C")
+  where \<open>C \<equiv> Hex 1 1 0 0\<close>
+
+abbreviation D_Hex :: Hex ("D")
+  where \<open>D \<equiv> Hex 1 1 0 1\<close>
+
+abbreviation E_Hex :: Hex ("E")
+  where \<open>E \<equiv> Hex 1 1 1 0\<close>
+
+abbreviation F_Hex :: Hex ("F")
+  where \<open>F \<equiv> Hex 1 1 1 1\<close>
+
+lemma "F = Hex 1 1 1 1" by auto
+
+fun Hex_of_list :: "bit list \<Rightarrow> Hex" where
+  "Hex_of_list [] = Hex 0 0 0 0" |
+  "Hex_of_list [d] = Hex 0 0 0 d" |
+  "Hex_of_list [c,d] = Hex 0 0 c d" |
+  "Hex_of_list [b,c,d] = Hex 0 b c d" |
+  "Hex_of_list [a,b,c,d] = Hex a b c d" |
+  "Hex_of_list (a # xs) = Hex_of_list xs"
+
+datatype Word = Word Hex Hex Hex Hex
+
+consts to_list :: "'a \<Rightarrow> bit list"
+overloading
+  to_list_Hex \<equiv> "to_list :: Hex \<Rightarrow> bit list"
+  to_list_Word \<equiv> "to_list :: Word \<Rightarrow> bit list"
+begin
+fun to_list_Hex where
+  "to_list_Hex (Hex a b c d) = [a,b,c,d]"
+
+fun to_list_Word where
+  "to_list_Word (Word h1 h2 h3 h4) = (to_list h1) @ (to_list h2) @ (to_list h3) @ (to_list h4)"
+end
+
+fun split :: "nat \<Rightarrow> 'a list \<Rightarrow> ('a list) * ('a list)" where
+  "split n xs = (take n xs, drop n xs)"
+
+section \<open>Logic Gates for Hexadecimals\<close>
+
+fun NOT_Hex :: \<open>Hex \<Rightarrow> Hex\<close>
+  where \<open>NOT_Hex (Hex a b c d) = Hex (NOT a) (NOT b) (NOT c) (NOT d)\<close>
+
+fun AND_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
+  "AND_Hex (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = Hex (AND a1 a2) (AND b1 b2) (AND c1 c2) (AND d1 d2)"
+
+fun OR_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
+  "OR_Hex (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = Hex (OR a1 a2) (OR b1 b2) (OR c1 c2) (OR d1 d2)"
+
+fun XOR_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
+  "XOR_Hex (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = Hex (XOR a1 a2) (XOR b1 b2) (XOR c1 c2) (XOR d1 d2)"
+
+definition MUX_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> bit \<Rightarrow> Hex\<close> where [simp]:
+  "MUX_Hex a b s \<equiv> case a of (Hex a1 b1 c1 d1) \<Rightarrow> (case b of (Hex a2 b2 c2 d2) \<Rightarrow> Hex (MUX a1 a2 s) (MUX b1 b2 s) (MUX c1 c2 s) (MUX d1 d2 s))"
+
+lemma MUX_Hex_left [simp]: "MUX_Hex a b 0 = a"
+proof (cases a)
+  case A1: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case A2: (Hex b1 b2 b3 b4)
+    then show ?thesis using A1 by simp
+  qed
+qed
+
+lemma MUX_Hex_right [simp]: "MUX_Hex a b 1 = b"
+proof (cases a)
+  case A1: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case A2: (Hex b1 b2 b3 b4)
+    then show ?thesis using A1 by simp
+  qed
+qed
+
+section \<open>Logic Gates for Words\<close>
+
+fun OR8 :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> bit\<close> where
+  "OR8 (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = OR (OR a1 a2) (OR (OR b1 b2) (OR (OR c1 c2) (OR d1 d2)))"
+
+fun MUX16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
+  "MUX16 (Word a1 b1 c1 d1) (Word a2 b2 c2 d2) s = Word (MUX_Hex a1 a2 s) (MUX_Hex b1 b2 s) (MUX_Hex c1 c2 s) (MUX_Hex d1 d2 s)"
+
+lemma MUX16_left [simp]: "MUX16 a b 0 = a"
+proof (cases a)
+  case A1: (Word x1 x2 x3 x4)
+  then show ?thesis
+  proof (cases b)
+    case A2: (Word y1 y2 y3 y4)
+    then show ?thesis using A1 MUX_Hex_left by auto
+  qed
+qed
+
+lemma MUX16_right [simp]: "MUX16 a b 1 = b"
+proof (cases a)
+  case A1: (Word x1 x2 x3 x4)
+  then show ?thesis
+  proof (cases b)
+    case A2: (Word y1 y2 y3 y4)
+    then show ?thesis using A1 MUX_Hex_right by auto
+  qed
+qed
+
 
 end
