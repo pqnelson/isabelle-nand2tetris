@@ -182,6 +182,84 @@ proof
   show "snd (DMUX i 1) = snd (0, i)" using AND_a_1 by (simp add: DMUX_def)
 qed
 
+(* Only 9 NAND gates are needed for the FULLADDER, returns (sum, carry). *)
+definition FULLADDER :: \<open>bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> (bit * bit)\<close>
+  where \<open>FULLADDER a b c \<equiv> let nab = NAND a b 
+in let sab = NAND (NAND b nab) (NAND a nab)
+in let scab = NAND sab c
+in (NAND (NAND scab sab) (NAND scab c), NAND nab scab)\<close>
+
+value "FULLADDER a b c"
+value "FULLADDER 1 0 1"
+
+lemma FULLADDER_000 [simp]: "FULLADDER 0 0 0 = (0, 0)"
+proof
+  show "(fst (FULLADDER 0 0 0)) = fst(0,0)" by (simp add: FULLADDER_def)
+  show "(snd (FULLADDER 0 0 0)) = snd(0,0)" by (simp add: FULLADDER_def)
+qed
+
+lemma FULLADDER_001 [simp]: "FULLADDER 0 0 1 = (1, 0)"
+proof
+  show "(fst (FULLADDER 0 0 1)) = fst(1,0)" by (simp add: FULLADDER_def)
+  show "(snd (FULLADDER 0 0 1)) = snd(1,0)" by (simp add: FULLADDER_def)
+qed
+
+lemma FULLADDER_010 [simp]: "FULLADDER 0 1 0 = (1, 0)"
+proof
+  show "(fst (FULLADDER 0 1 0)) = fst(1,0)" by (simp add: FULLADDER_def)
+  show "(snd (FULLADDER 0 1 0)) = snd(1,0)" by (simp add: FULLADDER_def)
+qed
+
+lemma FULLADDER_011 [simp]: "FULLADDER 0 1 1 = (0, 1)"
+proof
+  show "(fst (FULLADDER 0 1 1)) = fst(0,1)" by (simp add: FULLADDER_def)
+  show "(snd (FULLADDER 0 1 1)) = snd(0,1)" by (simp add: FULLADDER_def)
+qed
+
+lemma FULLADDER_100 [simp]: "FULLADDER 1 0 0 = (1, 0)"
+proof
+  show "(fst (FULLADDER 1 0 0)) = fst(1,0)" by (simp add: FULLADDER_def)
+  show "(snd (FULLADDER 1 0 0)) = snd(1,0)" by (simp add: FULLADDER_def)
+qed
+
+lemma FULLADDER_101 [simp]: "FULLADDER 1 0 1 = (0, 1)"
+proof
+  show "(fst (FULLADDER 1 0 1)) = fst(0,1)" by (simp add: FULLADDER_def)
+  show "(snd (FULLADDER 1 0 1)) = snd(0,1)" by (simp add: FULLADDER_def)
+qed
+
+lemma FULLADDER_110 [simp]: "FULLADDER 1 1 0 = (0, 1)"
+proof
+  show "(fst (FULLADDER 1 1 0)) = fst(0,1)" by (simp add: FULLADDER_def)
+  show "(snd (FULLADDER 1 1 0)) = snd(0,1)" by (simp add: FULLADDER_def)
+qed
+
+lemma FULLADDER_111 [simp]: "FULLADDER 1 1 1 = (1, 1)"
+proof
+  show "(fst (FULLADDER 1 1 1)) = fst(1,1)" by (simp add: FULLADDER_def)
+  show "(snd (FULLADDER 1 1 1)) = snd(1,1)" by (simp add: FULLADDER_def)
+qed
+
+definition MUX4WAY :: \<open>bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit\<close>
+  where \<open>MUX4WAY a b c d s0 s1 \<equiv> MUX (MUX a b s1) (MUX c d s1) s0\<close>
+
+lemma MUX4WAY_00 [simp]: "MUX4WAY a b c d 0 0 = a" by (simp add: MUX4WAY_def)
+lemma MUX4WAY_01 [simp]: "MUX4WAY a b c d 0 1 = b" by (simp add: MUX4WAY_def)
+lemma MUX4WAY_10 [simp]: "MUX4WAY a b c d 1 0 = c" by (simp add: MUX4WAY_def)
+lemma MUX4WAY_11 [simp]: "MUX4WAY a b c d 1 1 = d" by (simp add: MUX4WAY_def)
+
+definition MUX8WAY :: \<open>bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit\<close>
+  where \<open>MUX8WAY a b c d e f g h s0 s1 s2 \<equiv> MUX (MUX4WAY a b c d s1 s2) (MUX4WAY e f g h s1 s2) s0\<close>
+
+lemma MUX8WAY_000 [simp]: "MUX8WAY a b c d e f g h 0 0 0 = a" by (simp add: MUX8WAY_def)
+lemma MUX8WAY_001 [simp]: "MUX8WAY a b c d e f g h 0 0 1 = b" by (simp add: MUX8WAY_def)
+lemma MUX8WAY_010 [simp]: "MUX8WAY a b c d e f g h 0 1 0 = c" by (simp add: MUX8WAY_def)
+lemma MUX8WAY_011 [simp]: "MUX8WAY a b c d e f g h 0 1 1 = d" by (simp add: MUX8WAY_def)
+lemma MUX8WAY_100 [simp]: "MUX8WAY a b c d e f g h 1 0 0 = e" by (simp add: MUX8WAY_def)
+lemma MUX8WAY_101 [simp]: "MUX8WAY a b c d e f g h 1 0 1 = f" by (simp add: MUX8WAY_def)
+lemma MUX8WAY_110 [simp]: "MUX8WAY a b c d e f g h 1 1 0 = g" by (simp add: MUX8WAY_def)
+lemma MUX8WAY_111 [simp]: "MUX8WAY a b c d e f g h 1 1 1 = h" by (simp add: MUX8WAY_def)
+
 section \<open>Hexadecimal and Machine words\<close>
 text \<open>Since the book associated with Nand2Tetris uses Big Endian convention, I follow their
 convention. Realistically, we should refactor this out, so as to force the user to import
@@ -204,6 +282,7 @@ instance
   by standard (simp add: one_Hex_def zero_Hex_def)
 end
 
+(*
 abbreviation Two_Hex :: Hex ("2")
   where \<open>2 \<equiv> Hex 0 0 1 0\<close>
 
@@ -244,6 +323,7 @@ abbreviation F_Hex :: Hex ("F")
   where \<open>F \<equiv> Hex 1 1 1 1\<close>
 
 lemma "F = Hex 1 1 1 1" by auto
+*)
 
 fun Hex_of_list :: "bit list \<Rightarrow> Hex" where
   "Hex_of_list [] = Hex 0 0 0 0" |
@@ -266,6 +346,86 @@ fun to_list_Hex where
 fun to_list_Word where
   "to_list_Word (Word h1 h2 h3 h4) = (to_list h1) @ (to_list h2) @ (to_list h3) @ (to_list h4)"
 end
+
+fun Hex_to_nat :: "Hex \<Rightarrow> nat" where
+  "Hex_to_nat (Hex a b c d) = (if 1=d then (1::nat) else 0) + (if 1=c then 2 else 0) +
+    (if 1=b then 4 else 0) + (if 1=a then 8 else 0)"
+
+fun Word_to_nat :: "Word \<Rightarrow> nat" where
+  "Word_to_nat (Word h1 h2 h3 h4) = (Hex_to_nat h1) + 16*(Hex_to_nat h2) + 256*(Hex_to_nat h3) + 4096*(Hex_to_nat h4)"
+
+fun nat_to_Hex :: "nat \<Rightarrow> Hex" where
+"nat_to_Hex n = (let m = (n mod 16) in
+ if m = 0 then (Hex 0 0 0 0)
+ else if m = (1::nat) then (Hex 0 0 0 1)
+ else if m = 2 then (Hex 0 0 1 0)
+ else if m = 3 then (Hex 0 0 1 1)
+ else if m = 4 then (Hex 0 1 0 0)
+ else if m = 5 then (Hex 0 1 0 1)
+ else if m = 6 then (Hex 0 1 1 0)
+ else if m = 7 then (Hex 0 1 1 1)
+ else if m = 8 then (Hex 1 0 0 0)
+ else if m = 9 then (Hex 1 0 0 1)
+ else if m = 10 then (Hex 1 0 1 0)
+ else if m = 11 then (Hex 1 0 1 1)
+ else if m = 12 then (Hex 1 1 0 0)
+ else if m = 13 then (Hex 1 1 0 1)
+ else if m = 14 then (Hex 1 1 1 0)
+ else (Hex 1 1 1 1))"
+
+(* Some smoke checks to make sure the conversions work as expected. *)
+lemma "nat_to_Hex 0x0 = Hex 0 0 0 0" by simp
+lemma "nat_to_Hex 0x1 = Hex 0 0 0 1" by simp
+lemma "nat_to_Hex 0x2 = Hex 0 0 1 0" by simp
+lemma "nat_to_Hex 0x3 = Hex 0 0 1 1" by simp
+lemma "nat_to_Hex 0x4 = Hex 0 1 0 0" by simp
+lemma "nat_to_Hex 0x5 = Hex 0 1 0 1" by simp
+lemma "nat_to_Hex 0x6 = Hex 0 1 1 0" by simp
+lemma "nat_to_Hex 0x7 = Hex 0 1 1 1" by simp
+lemma "nat_to_Hex 0x8 = Hex 1 0 0 0" by simp
+lemma "nat_to_Hex 0x9 = Hex 1 0 0 1" by simp
+lemma "nat_to_Hex 0xA = Hex 1 0 1 0" by simp
+lemma "nat_to_Hex 0xB = Hex 1 0 1 1" by simp
+lemma "nat_to_Hex 0xC = Hex 1 1 0 0" by simp
+lemma "nat_to_Hex 0xD = Hex 1 1 0 1" by simp
+lemma "nat_to_Hex 0xE = Hex 1 1 1 0" by simp
+lemma "nat_to_Hex 0xF = Hex 1 1 1 1" by simp
+
+theorem Hex_to_nat_to_Hex: "nat_to_Hex (Hex_to_nat a) = a"
+proof (cases a)
+  case (Hex x1 x2 x3 x4)
+  then show ?thesis by simp
+qed
+
+fun nat_to_Word :: "nat \<Rightarrow> Word" where
+"nat_to_Word n = Word (nat_to_Hex ((n div 4096) mod 16)) (nat_to_Hex ((n div 256) mod 16))
+  (nat_to_Hex ((n div 16) mod 16)) (nat_to_Hex (n mod 16))"
+
+lemma mod_of_prod: "(a * b) mod a = 0"
+proof-
+  have A1: "a dvd (a * b)" using dvdI by auto
+  have "(a * b) mod a = 0 \<longleftrightarrow> a dvd (a * b)" using mod_eq_0_iff_dvd by force
+  thus "(a * b) mod a = 0" using A1 by simp
+qed
+
+lemma Hex_to_nat_mod16 [simp]: "(Hex_to_nat x) mod 16 = Hex_to_nat x"
+proof (cases x)
+  case (Hex x1 x2 x3 x4)
+  thus ?thesis by simp
+qed
+
+theorem Word_to_nat_to_Word: "nat_to_Word (Word_to_nat w) = w"
+proof (cases w)
+  case A1: (Word x1 x2 x3 x4)
+  hence "Word_to_nat w = (Hex_to_nat x1) + 16*(Hex_to_nat x2) + 256*(Hex_to_nat x3) + 4096*(Hex_to_nat x4)"
+    by simp
+  hence "nat_to_Word (Word_to_nat w) = nat_to_Word ((Hex_to_nat x1) + 16*(Hex_to_nat x2) 
+    + 256*(Hex_to_nat x3) + 4096*(Hex_to_nat x4))"
+    by simp
+  hence "nat_to_Word (Word_to_nat w) = Word x1 x2 x3 x4"
+    using Hex_to_nat_mod16 mod_of_prod by force
+  then show ?thesis using A1 by auto
+qed
 
 fun split :: "nat \<Rightarrow> 'a list \<Rightarrow> ('a list) * ('a list)" where
   "split n xs = (take n xs, drop n xs)"
@@ -335,5 +495,44 @@ proof (cases a)
   qed
 qed
 
+section \<open>Arithmetic Gates for Hex and Words\<close>
+(* Chained FULLADDERs returning the sum and its carry bit. *)
+fun ADDER_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> bit \<Rightarrow> Hex * bit\<close> where
+"ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c = (let (s4,c4) = FULLADDER a4 b4 c
+in let (s3,c3) = FULLADDER a3 b3 c4
+in let (s2,c2) = FULLADDER a2 b2 c3
+in let (s1,c1) = FULLADDER a1 b1 c2
+in (Hex s1 s2 s3 s4, c1))"
+
+lemma ADDER_Hex_check: "Hex_to_nat (fst (ADDER_Hex a b 0)) = ((Hex_to_nat a) + (Hex_to_nat b)) mod 16"
+proof (cases a)
+  case A1: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case A2: (Hex b1 b2 b3 b4)
+    then show ?thesis using A1 by auto
+  qed
+qed
+
+lemma ADDER_Hex_check2: "(s,c) = ADDER_Hex a b 0 \<Longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = (if (c=1) then 32 else 0) + (Hex_to_nat s)"
+proof (cases a)
+  case A1: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case (Hex x1 x2 x3 x4)
+    then show ?thesis using A1 ADDER_Hex_check by force
+  qed
+qed
+
+(* Add two words together, does not signal overflow or underflow, discards carry bit. *)
+fun ADDER16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
+"ADDER16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4) = (let (s4,c4) = ADDER_Hex a4 b4 0
+in let (s3,c3) = ADDER_Hex a3 b3 c4
+in let (s2,c2) = ADDER_Hex a2 b2 c3
+in let (s1,c1) = ADDER_Hex a1 b1 c2
+in (Word s1 s2 s3 s4))"
+
+fun INC16 :: \<open>Word \<Rightarrow> Word\<close> where
+"INC16 a = ADDER16 a (Word 0 0 0 1)"
 
 end
