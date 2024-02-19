@@ -1,5 +1,5 @@
 theory Scratch
-  imports Main "~~/src/HOL/Library/Z2" HOL.Sledgehammer
+  imports Main "~~/src/HOL/Library/Z2" HOL.Sledgehammer HOL.Nitpick
 begin
 
 section \<open>Basic Logic Gates\<close>
@@ -240,6 +240,51 @@ proof
   show "(snd (FULLADDER 1 1 1)) = snd(1,1)" by (simp add: FULLADDER_def)
 qed
 
+lemma FULLADDER_00c: "FULLADDER 0 0 c = (c,0)"
+  by (metis (full_types) FULLADDER_000 FULLADDER_001 bit.exhaust) 
+
+lemma FULLADDER_0bc: "FULLADDER 0 b c = (XOR b c,AND b c)"
+proof -
+  have "1 = b \<and> 1 = c \<longrightarrow> FULLADDER 0 b c = (XOR b c, AND b c)"
+    by auto
+  then have "1 = b \<longrightarrow> FULLADDER 0 b c = (XOR b c, AND b c)"
+    by force
+  then show ?thesis
+    by (metis (full_types) AND_0_b FULLADDER_00c XOR_0_0 XOR_0_1 bit.exhaust)
+qed
+
+lemma FULLADDER_a0c: "FULLADDER a 0 c = (XOR a c,AND a c)"
+  by (metis (full_types) AND_0_1 AND_1_1 AND_a_0 FULLADDER_000 FULLADDER_001 FULLADDER_100 FULLADDER_101 XOR_0_0 XOR_0_1 XOR_1_0 XOR_1_1 bit_not_one_iff)
+
+lemma FULLADDER_a00: "FULLADDER a 0 0 = (a,0)"
+proof (cases a)
+  case zero
+  then show ?thesis by simp
+next
+  case one
+  then show ?thesis by simp
+qed
+
+lemma FULLADDER_0b0: "FULLADDER 0 b 0 = (b,0)"
+proof (cases b)
+  case zero
+  then show ?thesis by simp
+next
+  case one
+  then show ?thesis by simp
+qed
+
+lemma FULLADDER_abc: "FULLADDER a b c = (XOR a (XOR b c),OR (AND a b) (AND c (XOR a b)))"
+  by (smt (z3) AND_0_0 AND_1_0 AND_a_1 FULLADDER_000 FULLADDER_001 FULLADDER_010 FULLADDER_011 FULLADDER_100 FULLADDER_101 FULLADDER_110 FULLADDER_111 OR_0_b OR_1_0 XOR_0_0 XOR_0_1 XOR_1_0 XOR_1_1 bit_not_one_iff)
+
+lemma FULLADDER_carry_criteria: "(s,1) = FULLADDER a b c \<longrightarrow> (a = 1 \<and> b = 1) \<or> (c = 1 \<and> a = 1 \<and> b = 0) \<or> (c = 1 \<and> a = 0 \<and> b = 1)"
+proof -
+  have "(s, 1) \<noteq> FULLADDER 1 0 0"
+    by simp
+  then show ?thesis
+    by (smt (z3) FULLADDER_00c FULLADDER_0b0 Pair_inject bit_not_zero_iff)
+qed
+
 definition MUX4WAY :: \<open>bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit\<close>
   where \<open>MUX4WAY a b c d s0 s1 \<equiv> MUX (MUX a b s1) (MUX c d s1) s0\<close>
 
@@ -402,11 +447,7 @@ fun nat_to_Word :: "nat \<Rightarrow> Word" where
   (nat_to_Hex ((n div 16) mod 16)) (nat_to_Hex (n mod 16))"
 
 lemma mod_of_prod: "(a * b) mod a = 0" for a b :: nat
-proof-
-  have A1: "a dvd (a * b)" using dvdI by auto
-  have "a dvd (a * b) \<longrightarrow> (a * b) mod a = 0" by simp
-  thus "(a * b) mod a = 0" using A1 by simp
-qed
+  using Euclidean_Rings.euclidean_semiring_cancel_class.mod_mult_self1_is_0 by simp
 
 lemma Hex_to_nat_mod16 [simp]: "(Hex_to_nat x) mod 16 = Hex_to_nat x"
 proof (cases x)
@@ -427,6 +468,25 @@ proof (cases w)
   then show ?thesis using A1 by auto
 qed
 *)
+
+lemma Hex_unsigned_max: "Hex_to_nat x < 16"
+  by (metis Hex_to_nat_mod16 mod_less_divisor zero_less_numeral)
+
+lemma Word_unsigned_max: "Word_to_nat w < 65536"
+proof (cases w)
+  case A1: (Word x1 x2 x3 x4)
+  have A2: "Hex_to_nat x1 \<le> 15 \<and> Hex_to_nat x2 \<le> 15 \<and> Hex_to_nat x3 \<le> 15 \<and> Hex_to_nat x4 \<le> 15"
+    using A1 Hex_unsigned_max
+    by (metis eval_nat_numeral(2) less_Suc_eq_le semiring_norm(26) semiring_norm(27))
+  moreover have "Word_to_nat w = (Hex_to_nat x1) + 16*(Hex_to_nat x2) + 256*(Hex_to_nat x3) + 4096*(Hex_to_nat x4)"
+    by (simp add: A1)
+  ultimately have A3: "Word_to_nat w < 16 + 16*15 + 256*15 + 4096*15"
+    by auto
+  then show ?thesis by simp
+qed
+
+lemma Word_to_nat_mod65536: "(Word_to_nat w) mod 65536 = Word_to_nat w"
+  by (simp add: Word_unsigned_max)
 
 fun split :: "nat \<Rightarrow> 'a list \<Rightarrow> ('a list) * ('a list)" where
   "split n xs = (take n xs, drop n xs)"
@@ -505,24 +565,6 @@ in let (s2,c2) = FULLADDER a2 b2 c3
 in let (s1,c1) = FULLADDER a1 b1 c2
 in (Hex s1 s2 s3 s4, c1))"
 
-lemma FULLADDER_a00: "FULLADDER a 0 0 = (a,0)"
-proof (cases a)
-  case zero
-  then show ?thesis by simp
-next
-  case one
-  then show ?thesis by simp
-qed
-
-lemma FULLADDER_0b0: "FULLADDER 0 b 0 = (b,0)"
-proof (cases b)
-  case zero
-  then show ?thesis by simp
-next
-  case one
-  then show ?thesis by simp
-qed
-
 lemma ADDER_Hex_0b0: "ADDER_Hex (Hex 0 0 0 0) b 0 = (b, 0)"
 proof (cases b)
   case A1: (Hex x1 x2 x3 x4)
@@ -545,89 +587,49 @@ proof (cases a)
   qed
 qed
 
+lemma ADDER_Hex_small: "(Hex_to_nat a) + (Hex_to_nat b) < 16 \<longrightarrow> (s,0 :: bit) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = (Hex_to_nat s)"
+proof -
+  have "s = fst (s, 0::bit)"
+    by auto
+  then show ?thesis
+    by (smt (z3) ADDER_Hex_check mod_less)
+qed
+
 lemma ADDER_Hex_check2: "(s,0 :: bit) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = (Hex_to_nat s)"
 proof (cases a)
   case A1: (Hex a1 a2 a3 a4)
   then show ?thesis
   proof (cases b)
     case (Hex x1 x2 x3 x4)
-    then show ?thesis using A1 ADDER_Hex_check by auto
+    then show ?thesis using A1 ADDER_Hex_check by simp
   qed
 qed
 
-lemma FULLADDER_00c: "FULLADDER 0 0 c = (c,0)"
-  by (metis (full_types) FULLADDER_000 FULLADDER_001 bit.exhaust) 
+lemma ADDER_Hex_c_01: "(s,1) = ADDER_Hex (Hex 0 a2 a3 a4) (Hex 1 b2 b3 b4) 0 \<longrightarrow> 
+(Hex_to_nat (Hex 1 b2 b3 b4)) + (Hex_to_nat (Hex 0 a2 a3 a4)) = 16 + Hex_to_nat s"
+ by (simp add: FULLADDER_a00)
 
-lemma FULLADDER_0bc: "FULLADDER 0 b c = (XOR b c,AND b c)"
-proof -
-  have "1 = b \<and> 1 = c \<longrightarrow> FULLADDER 0 b c = (XOR b c, AND b c)"
-    by auto
-  then have "1 = b \<longrightarrow> FULLADDER 0 b c = (XOR b c, AND b c)"
-    by force
-  then show ?thesis
-    by (metis (full_types) AND_0_b FULLADDER_00c XOR_0_0 XOR_0_1 bit.exhaust)
-qed
+lemma ADDER_Hex_c_10: "(s,1) = ADDER_Hex (Hex 1 a2 a3 a4) (Hex 0 b2 b3 b4) 0 \<longrightarrow>
+(Hex_to_nat (Hex 0 b2 b3 b4)) + (Hex_to_nat (Hex 1 a2 a3 a4)) = 16 + Hex_to_nat s"
+ by (simp add: FULLADDER_a00)
 
-lemma FULLADDER_a0c: "FULLADDER a 0 c = (XOR a c,AND a c)"
-  by (metis (full_types) AND_0_1 AND_1_1 AND_a_0 FULLADDER_000 FULLADDER_001 FULLADDER_100 FULLADDER_101 XOR_0_0 XOR_0_1 XOR_1_0 XOR_1_1 bit_not_one_iff)
-
-lemma ADDER_Hex_check3_00: "(s,c) = ADDER_Hex (Hex 0 a2 a3 a4) (Hex 0 b2 b3 b4) 0 \<longrightarrow> c = 0"
-proof -
-  have "\<forall>b. FULLADDER 0 0 b = (b, 0)"
-    by (metis FULLADDER_00c)
-  then show ?thesis
-    by (smt (z3) ADDER_Hex.simps FULLADDER_def Pair_inject split_conv)
-qed
-
-lemma ADDER_Hex_check3_11: "(s,c) = ADDER_Hex (Hex 1 a2 a3 a4) (Hex 1 b2 b3 b4) 0 \<longrightarrow> c = 1"
-  by (smt (verit) ADDER_Hex.simps FULLADDER_000 FULLADDER_001 FULLADDER_def Pair_inject bit_not_one_iff split_conv)
-
-lemma ADDER_Hex_check3_01: "(s,1::bit) = ADDER_Hex (Hex 0 a2 a3 a4) (Hex 1 b2 b3 b4) 0 
-\<longrightarrow> (Hex_to_nat (Hex 0 a2 a3 a4)) + (Hex_to_nat (Hex 1 b2 b3 b4)) = 16 + (Hex_to_nat s)"
-  sledgehammer [isar_proofs]
+lemma ADDER_Hex_c_11: "(s,1) = ADDER_Hex (Hex 1 a2 a3 a4) (Hex 1 b2 b3 b4) 0 \<longrightarrow>
+(Hex_to_nat (Hex 1 b2 b3 b4)) + (Hex_to_nat (Hex 1 a2 a3 a4)) = 16 + Hex_to_nat s"
+ by (simp add: FULLADDER_a00)
 
 lemma ADDER_Hex_check3: "(s,1 :: bit) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = 16 + (Hex_to_nat s)"
-proof
-  assume A0: "(s, 1::bit) = ADDER_Hex a b 0"
-  then show "(Hex_to_nat a) + (Hex_to_nat b) = 16 + (Hex_to_nat s)"
-  proof (cases a)
-    case A1: (Hex a1 a2 a3 a4)
-    then show ?thesis
-    proof (cases b)
-      case A2: (Hex b1 b2 b3 b4)
-      then show ?thesis
-      proof (cases b1)
-        case A3: zero
-        then show ?thesis
-        proof (cases a1)
-          case zero
-          then show ?thesis using A0 A1 A2 A3 ADDER_Hex_check3_00 by blast
-        next
-          case one
-          then show ?thesis using A0 A1 A2 sorry
-        qed
-      next
-        case A3: one
-        then show ?thesis
-        proof (cases a1)
-          case zero
-          then show ?thesis sorry
-        next
-          case one
-          then show ?thesis using A0 A1 A2 A3 ADDER_Hex_check3_11 by auto
-        qed
-      qed
-    qed
+proof (cases a)
+  case A: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case (Hex b1 b2 b3 b4)
+    then show ?thesis using A ADDER_Hex_c_01 ADDER_Hex_c_10 by simp
   qed
 qed
 
-lemma ADDER_Hex_checks: "(s,c :: bit) = ADDER_Hex a b 0 \<longrightarrow>
+theorem ADDER_Hex_checks: "(s,c :: bit) = ADDER_Hex a b 0 \<longrightarrow>
   (Hex_to_nat a) + (Hex_to_nat b) = (if (c=1) then 16 else 0) + (Hex_to_nat s)"
-proof
-  assume A1: "(s,c :: bit) = ADDER_Hex a b 0"
-  then show "Hex_to_nat a + Hex_to_nat b = (if c = 1 then 16 else 0) + Hex_to_nat s"
-    using ADDER_Hex_check2 ADDER_Hex_check3 by fastforce
-qed
+  by (simp add: ADDER_Hex_check2 ADDER_Hex_check3)
 
 (* Add two words together, does not signal overflow or underflow, discards carry bit. *)
 fun ADDER16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
@@ -636,6 +638,21 @@ in let (s3,c3) = ADDER_Hex a3 b3 c4
 in let (s2,c2) = ADDER_Hex a2 b2 c3
 in let (s1,c1) = ADDER_Hex a1 b1 c2
 in (Word s1 s2 s3 s4))"
+
+lemma ADDER16_0b: "ADDER16 (Word 0 0 0 0) b = b"
+proof (cases b)
+  case B: (Word b1 b2 b3 b4)
+  then show ?thesis by (simp add: ADDER_Hex_0b0 zero_Hex_def)
+qed
+
+lemma ADDER16_a0: "ADDER16 a (Word 0 0 0 0) = a"
+proof (cases a)
+  case (Word a1 a2 a3 a4)
+  then show ?thesis by (simp add: ADDER_Hex_a00 zero_Hex_def)
+qed
+
+lemma ADDER16_check: "Word_to_nat (ADDER16 a b) = ((Word_to_nat a) + (Word_to_nat b)) mod 65536"
+  oops
 
 fun INC16 :: \<open>Word \<Rightarrow> Word\<close> where
 "INC16 a = ADDER16 a (Word 0 0 0 1)"
