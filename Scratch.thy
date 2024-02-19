@@ -491,10 +491,19 @@ lemma Word_to_nat_mod65536: "(Word_to_nat w) mod 65536 = Word_to_nat w"
 fun split :: "nat \<Rightarrow> 'a list \<Rightarrow> ('a list) * ('a list)" where
   "split n xs = (take n xs, drop n xs)"
 
+fun sign_bit :: "Word \<Rightarrow> bit" where
+"sign_bit (Word (Hex s _ _ _) _ _ _) = s"
+
 section \<open>Logic Gates for Hexadecimals\<close>
 
 fun NOT_Hex :: \<open>Hex \<Rightarrow> Hex\<close>
   where \<open>NOT_Hex (Hex a b c d) = Hex (NOT a) (NOT b) (NOT c) (NOT d)\<close>
+
+lemma NOT_NOT_Hex: "NOT_Hex (NOT_Hex a) = a"
+proof (cases a)
+  case (Hex x1 x2 x3 x4)
+  then show ?thesis using NOT_NOT by auto
+qed
 
 fun AND_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
   "AND_Hex (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = Hex (AND a1 a2) (AND b1 b2) (AND c1 c2) (AND d1 d2)"
@@ -532,6 +541,55 @@ section \<open>Logic Gates for Words\<close>
 
 fun OR8 :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> bit\<close> where
   "OR8 (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = OR (OR a1 a2) (OR (OR b1 b2) (OR (OR c1 c2) (OR d1 d2)))"
+
+lemma OR8_zero: "OR8 (0 :: Hex) (0 :: Hex) = 0"
+  by (simp add: zero_Hex_def)
+
+lemma OR8_zero_iff_zero: "OR a b = 0 \<longleftrightarrow> a = 0 \<and> b = 0"
+  using NAND.elims by fastforce
+
+fun ISZERO16 :: \<open>Word \<Rightarrow> bit\<close> where
+  "ISZERO16 (Word a b c d) = NOT (OR (OR8 a b) (OR8 c d))"
+
+
+lemma ISZERO16_check: "ISZERO16 (Word 0 0 0 0) = 1"
+proof-
+  have "ISZERO16 (Word 0 0 0 0) = NOT (OR (OR8 0 0) (OR8 0 0))" by simp
+  moreover have "NOT (OR (OR8 0 0) (OR8 0 0)) = NOT (OR 0 0)" using OR8_zero by simp
+  moreover have "NOT (OR 0 0) = 1" by simp
+  thus ?thesis by (simp add: OR8_zero)
+qed
+
+lemma ISZERO16_zero: "ISZERO16 (Word a b c d) = 1 \<longleftrightarrow> a = 0 \<and> b = 0 \<and> c = 0 \<and> d = 0"
+proof
+  assume A1: "ISZERO16 (Word a b c d) = 1"
+  then have "NOT (OR (OR8 a b) (OR8 c d)) = 1" by simp
+  then have "OR (OR8 a b) (OR8 c d) = 0" using NAND.elims by auto
+  then have A2: "(OR8 a b) = 0 \<and> (OR8 c d) = 0" by (metis OR_0_b OR_1_b bit_not_zero_iff)
+  then show "a = 0 \<and> b = 0 \<and> c = 0 \<and> d = 0"
+    by (metis (no_types, lifting) Hex.exhaust OR8.simps OR8_zero_iff_zero zero_Hex_def)
+next
+  assume A1: "a = 0 \<and> b = 0 \<and> c = 0 \<and> d = 0"
+  then have "OR8 a b = 0 \<and> OR8 c d = 0" by (simp add: OR8_zero)
+  then have "OR (OR8 a b) (OR8 c d) = 0" by simp
+  then have "NOT (OR (OR8 a b) (OR8 c d)) = 1" by simp
+  then show "ISZERO16 (Word a b c d) = 1" using A1 by auto
+qed
+
+fun NOT16 :: \<open>Word \<Rightarrow> Word\<close> where
+  "NOT16 (Word a b c d) = Word (NOT_Hex a) (NOT_Hex b) (NOT_Hex c) (NOT_Hex d)"
+
+lemma NOT16_NOT16: "NOT16 (NOT16 w) = w"
+proof (cases w)
+  case (Word x1 x2 x3 x4)
+  then show ?thesis using NOT_NOT_Hex by auto
+qed
+
+fun AND16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
+  "AND16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4) = Word (AND_Hex a1 b1) (AND_Hex a2 b2) (AND_Hex a3 b3) (AND_Hex a4 b4)"
+
+fun OR16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
+  "OR16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4) = Word (OR_Hex a1 b1) (OR_Hex a2 b2) (OR_Hex a3 b3) (OR_Hex a4 b4)"
 
 fun MUX16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
   "MUX16 (Word a1 b1 c1 d1) (Word a2 b2 c2 d2) s = Word (MUX_Hex a1 a2 s) (MUX_Hex b1 b2 s) (MUX_Hex c1 c2 s) (MUX_Hex d1 d2 s)"
