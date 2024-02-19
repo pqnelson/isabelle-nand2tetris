@@ -715,4 +715,21 @@ lemma ADDER16_check: "Word_to_nat (ADDER16 a b) = ((Word_to_nat a) + (Word_to_na
 fun INC16 :: \<open>Word \<Rightarrow> Word\<close> where
 "INC16 a = ADDER16 a (Word 0 0 0 1)"
 
+section \<open>Arithmetic Logical Unit\<close>
+
+fun NEGATE16 :: \<open>Word \<Rightarrow> Word\<close> where
+"NEGATE16 w = INC16 (NOT16 w)"
+
+fun ZERO_OUT_WORD :: \<open>Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
+"ZERO_OUT_WORD w zr = MUX16 w (Word 0 0 0 0) zr"
+
+lemma ZERO_OUT_WORD_isZero: "ISZERO16 (ZERO_OUT_WORD w 1) = 1"
+  using ISZERO16_zero by auto
+
+fun NEGATE_WORD :: \<open>Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
+"NEGATE_WORD w ng = MUX16 w (NEGATE16 w) ng"
+
+fun ZERO_OR_NEGATE :: \<open>Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word\<close> where
+"ZERO_OR_NEGATE w zr ng = (NEGATE_WORD (ZERO_OUT_WORD w zr) ng)"
+
 end
