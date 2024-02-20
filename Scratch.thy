@@ -784,12 +784,12 @@ lemma ZERO_OUT_WORD_isZero: "ISZERO16 (ZERO_OUT_WORD w 1) = 1"
   using ISZERO16_zero by auto
 
 fun NEGATE_WORD :: \<open>Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
-"NEGATE_WORD w ng = MUX16 w (NEGATE16 w) ng"
+"NEGATE_WORD w ng = MUX16 w (NOT16 w) ng"
 
 fun ZERO_OR_NEGATE :: \<open>Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word\<close> where
 "ZERO_OR_NEGATE w zr ng = (NEGATE_WORD (ZERO_OUT_WORD w zr) ng)"
 
-lemma ZERO_OR_NEGATE_w01 [simp]: "ZERO_OR_NEGATE w 0 1 = NEGATE16 w" by simp
+lemma ZERO_OR_NEGATE_w01 [simp]: "ZERO_OR_NEGATE w 0 1 = NOT16 w" by simp
 
 lemma ZERO_OR_NEGATE_w10 [simp]: "ZERO_OR_NEGATE w 1 0 = (Word 0 0 0 0)" by simp
 
@@ -819,10 +819,10 @@ lemma ALU_101010: "ALU x y 1 0 1 0 1 0 = (Word 0 0 0 0, 1, 0)"
 lemma ALU_111111: "ALU x y 1 1 1 1 1 1 = (Word 0 0 0 1, 0, 0)"
   oops
 
-lemma ALU_111010: "ALU x y 1 1 1 0 1 0 = (Word xF xF xF xF, 0, 1)" 
+lemma ALU_111010: "ALU x y 1 1 1 0 1 0 = (Word XF XF XF XF, 0, 1)" 
   oops
 
-lemma ALU_001100: "ALU x y 0 0 1 1 0 0 = (x, ISZERO16 x, sign_bit x)" sledgehammer (add: ADDER16_a0 ISZERO16_zero)
+lemma ALU_001100: "ALU x y 0 0 1 1 0 0 = (x, ISZERO16 x, sign_bit x)"
   oops
 
 lemma ALU_110000: "ALU x y 1 1 0 0 0 0 = (y, ISZERO16 y, sign_bit y)"
@@ -853,7 +853,8 @@ lemma ALU_110010: "ALU x y 1 1 0 0 1 0 = (DEC16 y, ISZERO16 (DEC16 y), sign_bit 
   oops
 
 lemma ALU_000010: "ALU x y 0 0 0 0 1 0 = (ADDER16 x y, ISZERO16 (ADDER16 x y), sign_bit (ADDER16 x y))"
-  by (smt (z3) ADDER_OR_AND_ab1 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps)
+  by (smt (z3) ADDER_OR_AND_ab1 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps 
+      ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps)
 (* by (metis ADDER_OR_AND_ab1 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps) *)
 
 lemma ALU_010011: "ALU x y 0 1 0 0 1 1 = (SUB16 x y, ISZERO16 (SUB16 x y), sign_bit (SUB16 x y))"
@@ -863,9 +864,34 @@ lemma ALU_000111: "ALU x y 0 0 0 1 1 1 = (SUB16 y x, ISZERO16 (SUB16 y x), sign_
   oops
 
 lemma ALU_000000: "ALU x y 0 0 0 0 0 0 = (AND16 x y, ISZERO16 (AND16 x y), sign_bit (AND16 x y))"
-  by (metis ADDER_OR_AND_ab0 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps)
+  by (metis ADDER_OR_AND_ab0 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps
+      ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps)
+
+lemma NOT_AND_NOT: "NOT (AND (NOT a) (NOT b)) = OR a b"
+  using NOT_NOT by auto
+
+lemma NOT_AND_NOT_Hex: "NOT_Hex (AND_Hex (NOT_Hex a) (NOT_Hex b)) = OR_Hex a b"
+proof (cases a)
+  case A: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case (Hex b1 b2 b3 b4)
+    then show ?thesis using NOT_AND_NOT NOT_AND_is_NAND A by force
+  qed
+qed
+
+lemma NOT16_AND16_NOT16: "NOT16 (AND16 (NOT16 a) (NOT16 b)) = OR16 a b"
+proof (cases a)
+  case A: (Word a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case (Word b1 b2 b3 b4)
+    then show ?thesis by (simp add: A NOT_AND_NOT_Hex) 
+  qed
+qed
 
 lemma ALU_010101: "ALU x y 0 1 0 1 0 1 = (OR16 x y, ISZERO16 (OR16 x y), sign_bit (OR16 x y))"
-  oops
+  by (smt (verit) ADDER16_OR_AND16.simps ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps
+      NOT16_AND16_NOT16 ZERO_OR_NEGATE.simps ZERO_OR_NEGATE_w01 ZERO_OUT_WORD.simps)
 
 end
