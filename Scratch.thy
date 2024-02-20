@@ -122,6 +122,9 @@ lemma OR_1_b: "OR 1 b = 1"
 theorem OR_comm: "OR a b = OR b a"
   by (simp add: NAND_comm)
 
+lemma NOT_AND_NOT: "NOT (AND (NOT a) (NOT b)) = OR a b"
+  using NOT_NOT by auto
+
 theorem de_Morgan_gate1: "NOT (AND a b) = OR (NOT a) (NOT b)"
 proof (cases a)
   case zero
@@ -292,6 +295,9 @@ proof -
   then show ?thesis
     by (smt (z3) FULLADDER_00c FULLADDER_0b0 Pair_inject bit_not_zero_iff)
 qed
+
+theorem FULLADDER_comm: "FULLADDER a b c = FULLADDER b a c"
+  by (smt (verit, best) FULLADDER_011 FULLADDER_0b0 FULLADDER_101 FULLADDER_a00 bit_not_one_iff)
 
 definition MUX4WAY :: \<open>bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit\<close>
   where \<open>MUX4WAY a b c d s0 s1 \<equiv> MUX (MUX a b s1) (MUX c d s1) s0\<close>
@@ -506,8 +512,31 @@ qed
 fun AND_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
   "AND_Hex (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = Hex (AND a1 a2) (AND b1 b2) (AND c1 c2) (AND d1 d2)"
 
+
+lemma AND_Hex_x_F: "AND_Hex x XF = x"
+proof (cases x)
+  case A1: (Hex x1 x2 x3 x4)
+  then show ?thesis using A1 AND_a_1 by simp
+qed
+
+lemma AND_Hex_F_x: "AND_Hex XF x = x"
+proof (cases x)
+  case A1: (Hex x1 x2 x3 x4)
+  then show ?thesis using A1 AND_1_b by simp
+qed
+
 fun OR_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
   "OR_Hex (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = Hex (OR a1 a2) (OR b1 b2) (OR c1 c2) (OR d1 d2)"
+
+lemma NOT_AND_NOT_Hex: "NOT_Hex (AND_Hex (NOT_Hex a) (NOT_Hex b)) = OR_Hex a b"
+proof (cases a)
+  case A: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case (Hex b1 b2 b3 b4)
+    then show ?thesis using NOT_AND_NOT NOT_AND_is_NAND A by force
+  qed
+qed
 
 fun XOR_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
   "XOR_Hex (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = Hex (XOR a1 a2) (XOR b1 b2) (XOR c1 c2) (XOR d1 d2)"
@@ -577,6 +606,9 @@ qed
 fun NOT16 :: \<open>Word \<Rightarrow> Word\<close> where
   "NOT16 (Word a b c d) = Word (NOT_Hex a) (NOT_Hex b) (NOT_Hex c) (NOT_Hex d)"
 
+lemma NOT16_one: "NOT16 (Word 0 0 0 1) = (Word XF XF XF XE)"
+  by (simp add: one_Hex_def zero_Hex_def)
+
 lemma NOT16_NOT16: "NOT16 (NOT16 w) = w"
 proof (cases w)
   case (Word w1 w2 w3 w4)
@@ -586,8 +618,30 @@ qed
 fun AND16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
   "AND16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4) = Word (AND_Hex a1 b1) (AND_Hex a2 b2) (AND_Hex a3 b3) (AND_Hex a4 b4)"
 
+lemma AND16_x_FFFF: "AND16 x (Word XF XF XF XF) = x"
+proof (cases x)
+  case (Word x1 x2 x3 x4)
+  then show ?thesis using AND_Hex_x_F by auto
+qed
+
+lemma AND16_FFFF_x: "AND16 (Word XF XF XF XF) x = x"
+proof (cases x)
+  case (Word x1 x2 x3 x4)
+  then show ?thesis using AND_Hex_F_x by auto
+qed
+
 fun OR16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
   "OR16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4) = Word (OR_Hex a1 b1) (OR_Hex a2 b2) (OR_Hex a3 b3) (OR_Hex a4 b4)"
+
+lemma NOT16_AND16_NOT16: "NOT16 (AND16 (NOT16 a) (NOT16 b)) = OR16 a b"
+proof (cases a)
+  case A: (Word a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case (Word b1 b2 b3 b4)
+    then show ?thesis by (simp add: A NOT_AND_NOT_Hex)
+  qed
+qed
 
 fun MUX16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
   "MUX16 (Word a1 b1 c1 d1) (Word a2 b2 c2 d2) s = Word (MUX_Hex a1 a2 s) (MUX_Hex b1 b2 s) (MUX_Hex c1 c2 s) (MUX_Hex d1 d2 s)"
@@ -711,6 +765,17 @@ theorem ADDER_Hex_check_carry: "(s, c :: bit) = ADDER_Hex a b 1 \<longrightarrow
   (Hex_to_nat a) + (Hex_to_nat b) + 1 = (if (c=1) then 16 else 0) + (Hex_to_nat s)"
   using ADDER_Hex_check_carry2 ADDER_Hex_check_carry3 by auto
 
+theorem ADDER_Hex_comm: "ADDER_Hex a b c = ADDER_Hex b a c"
+proof (cases a)
+  case A: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case (Hex b1 b2 b3 b4)
+    then show ?thesis
+      by (smt (verit) A ADDER_Hex.simps AND_1_0 AND_1_1 AND_def FULLADDER_101 FULLADDER_110 FULLADDER_def NAND.simps(1) bit_not_zero_iff snd_conv split_beta)
+  qed
+qed
+
 (* Add two words together, does not signal overflow or underflow, discards carry bit. *)
 fun ADDER16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
 "ADDER16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4) = (let (s4,c4) = ADDER_Hex a4 b4 0
@@ -754,25 +819,46 @@ proof (cases a)
   qed
 qed
 
+theorem ADDER16_comm: "ADDER16 x y = ADDER16 y x"
+proof (cases x)
+  case A1: (Word x1 x2 x3 x4)
+  then show ?thesis
+  proof (cases y)
+    case (Word y1 y2 y3 y4)
+    then show ?thesis by (simp add: A1 ADDER_Hex_comm)
+  qed
+qed
+
 fun INC16 :: \<open>Word \<Rightarrow> Word\<close> where
 "INC16 a = ADDER16 a (Word 0 0 0 1)"
+
+lemma INC16_fffe: "INC16 (Word XF XF XF XE) = (Word XF XF XF XF)"
+  by (simp add: ADDER16_a0 one_Hex_def zero_Hex_def)
+
+lemma INC16_ffff: "INC16 (Word XF XF XF XF) = (Word 0 0 0 0)"
+  by (simp add: one_Hex_def zero_Hex_def)
 
 section \<open>Arithmetic Logical Unit\<close>
 
 fun NEGATE16 :: \<open>Word \<Rightarrow> Word\<close> where
 "NEGATE16 w = INC16 (NOT16 w)"
 
-lemma INC16_ffff: "INC16 (Word XF XF XF XF) = (Word 0 0 0 0)"
-  by (simp add: one_Hex_def zero_Hex_def)
-
 lemma NEGATE16_zero: "NEGATE16 (Word 0 0 0 0) = (Word 0 0 0 0)"
   by (metis (mono_tags, lifting) INC16_ffff NEGATE16.elims NOT16.simps NOT_0 NOT_Hex.simps zero_Hex_def)
+
+lemma NEGATE16_one: "NEGATE16 (Word 0 0 0 1) = (Word XF XF XF XF)"
+  using INC16_fffe NOT16_one by auto
 
 fun SUB16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
 "SUB16 x y = ADDER16 x (NEGATE16 y)"
 
 fun DEC16 :: \<open>Word \<Rightarrow> Word\<close> where
 "DEC16 x = SUB16 x (Word 0 0 0 1)"
+
+lemma DEC_is_add_neg: "DEC16 x = ADDER16 x (NEGATE16 (Word 0 0 0 1))" by simp 
+
+lemma DEC_as_minus_one_plus_y: "ADDER16 (NEGATE16 (Word 0 0 0 1)) x = DEC16 x" 
+  using ADDER16_comm by auto
 
 lemma NOT16_zero: "NOT16 (Word 0 0 0 0) = Word XF XF XF XF"
   by (simp add: zero_Hex_def)
@@ -783,15 +869,20 @@ fun ZERO_OUT_WORD :: \<open>Word \<Rightarrow> bit \<Rightarrow> Word\<close> wh
 lemma ZERO_OUT_WORD_isZero: "ISZERO16 (ZERO_OUT_WORD w 1) = 1"
   using ISZERO16_zero by auto
 
-fun NEGATE_WORD :: \<open>Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
-"NEGATE_WORD w ng = MUX16 w (NOT16 w) ng"
+fun NOT_WORD :: \<open>Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
+"NOT_WORD w ng = MUX16 w (NOT16 w) ng"
 
-fun ZERO_OR_NEGATE :: \<open>Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word\<close> where
-"ZERO_OR_NEGATE w zr ng = (NEGATE_WORD (ZERO_OUT_WORD w zr) ng)"
+fun ZERO_OR_NOT :: \<open>Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word\<close> where
+"ZERO_OR_NOT w zr ng = (NOT_WORD (ZERO_OUT_WORD w zr) ng)"
 
-lemma ZERO_OR_NEGATE_w01 [simp]: "ZERO_OR_NEGATE w 0 1 = NOT16 w" by simp
+lemma ZERO_OR_NOT_w00 [simp]: "ZERO_OR_NOT w 0 0 = w" by simp
 
-lemma ZERO_OR_NEGATE_w10 [simp]: "ZERO_OR_NEGATE w 1 0 = (Word 0 0 0 0)" by simp
+lemma ZERO_OR_NOT_w01 [simp]: "ZERO_OR_NOT w 0 1 = NOT16 w" by simp
+
+lemma ZERO_OR_NOT_w10 [simp]: "ZERO_OR_NOT w 1 0 = (Word 0 0 0 0)" by simp
+
+lemma ZERO_OR_NOT_w11 [simp]: "ZERO_OR_NOT w 1 1 = (Word XF XF XF XF)"
+  using NOT16_zero by auto
 
 fun ADDER16_OR_AND16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
 "ADDER16_OR_AND16 a b f = MUX16 (AND16 a b) (ADDER16 a b) f"
@@ -804,7 +895,29 @@ lemma ADDER_OR_AND_ab0 [simp]: "ADDER16_OR_AND16 a b 0 = AND16 a b"
 
 (* The ALU operation without transforming the output. *)
 fun ALU_op :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word\<close> where
-"ALU_op x y zx nx zy ny f = (ADDER16_OR_AND16 (ZERO_OR_NEGATE x zx nx) (ZERO_OR_NEGATE y zy ny) f)"
+"ALU_op x y zx nx zy ny f = (ADDER16_OR_AND16 (ZERO_OR_NOT x zx nx) (ZERO_OR_NOT y zy ny) f)"
+
+lemma ALU_11111: "ALU_op x y 1 1 1 1 1 = Word XF XF XF XE"
+  using ADDER_OR_AND_ab1 ZERO_OR_NOT_w11 by auto
+
+lemma ALU_op_00110: "ALU_op x y 0 0 1 1 0 = x"
+  using AND16_x_FFFF NOT16_zero by auto
+
+lemma ALU_op_11000: "ALU_op x y 1 1 0 0 0 = y"
+  using AND16_FFFF_x NOT16_zero by auto
+
+lemma ALU_op_00001: "ALU_op x y 0 0 0 0 1 = ADDER16 x y"
+  by simp
+
+lemma ALU_op_11001: "ALU_op x y 1 1 0 0 1 = DEC16 y"
+proof-
+  have "ALU_op x y 1 1 0 0 1 = ADDER16 (NOT16 (Word 0 0 0 0)) y" by auto
+  then show ?thesis
+    by (metis (no_types, lifting) ADDER16.simps ADDER16_a0 ADDER_Hex.simps DEC_as_minus_one_plus_y FULLADDER_010 FULLADDER_100 INC16.simps NEGATE16.simps NOT16.simps NOT_0 NOT_1 NOT_Hex.simps one_Hex_def zero_Hex_def)
+qed
+
+lemma ALU_op_00111: "ALU_op x y 0 0 1 1 1 = DEC16 x"
+  using ADDER16_comm ALU_op_11001 by auto
 
 fun ALU :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word * bit * bit\<close> where
 "ALU x y zx nx zy ny f no = (let sym = ALU_op x y zx nx zy ny f
@@ -817,22 +930,22 @@ lemma ALU_101010: "ALU x y 1 0 1 0 1 0 = (Word 0 0 0 0, 1, 0)"
   by (simp add: zero_Hex_def)
 
 lemma ALU_111111: "ALU x y 1 1 1 1 1 1 = (Word 0 0 0 1, 0, 0)"
-  oops
+  by (simp add: one_Hex_def zero_Hex_def)
 
-lemma ALU_111010: "ALU x y 1 1 1 0 1 0 = (Word XF XF XF XF, 0, 1)" 
-  oops
+lemma ALU_111010: "ALU x y 1 1 1 0 1 0 = (Word XF XF XF XF, 0, 1)"
+  using ADDER16_a0 MUX16_left ZERO_OR_NOT_w11 by auto
 
 lemma ALU_001100: "ALU x y 0 0 1 1 0 0 = (x, ISZERO16 x, sign_bit x)"
-  oops
+  using ALU_op_00110 by auto
 
 lemma ALU_110000: "ALU x y 1 1 0 0 0 0 = (y, ISZERO16 y, sign_bit y)"
-  oops
+  using ALU_op_11000 by auto
 
 lemma ALU_001101: "ALU x y 0 0 1 1 0 1 = (NOT16 x, ISZERO16 (NOT16 x), sign_bit (NOT16 x))"
-  oops
+  by (metis ALU.simps ALU_op_00110 MUX16_right)
 
 lemma ALU_110001: "ALU x y 1 1 0 0 0 1 = (NOT16 y, ISZERO16 (NOT16 y), sign_bit (NOT16 y))"
-  oops
+  by (metis ALU.simps ALU_op_11000 MUX16_right)
 
 lemma ALU_001111: "ALU x y 0 0 1 1 1 1 = (NEGATE16 x, ISZERO16 (NEGATE16 x), sign_bit (NEGATE16 x))"
   oops
@@ -847,14 +960,14 @@ lemma ALU_110111: "ALU x y 1 1 0 1 1 1 = (INC16 y, ISZERO16 (INC16 y), sign_bit 
   oops
 
 lemma ALU_001110: "ALU x y 0 0 1 1 1 0 = (DEC16 x, ISZERO16 (DEC16 x), sign_bit (DEC16 x))"
-  oops
+  by (metis ALU.simps ALU_op_00111 MUX16_left)
 
 lemma ALU_110010: "ALU x y 1 1 0 0 1 0 = (DEC16 y, ISZERO16 (DEC16 y), sign_bit (DEC16 y))"
-  oops
+  by (metis ALU.simps ALU_op_11001 MUX16_left)
 
 lemma ALU_000010: "ALU x y 0 0 0 0 1 0 = (ADDER16 x y, ISZERO16 (ADDER16 x y), sign_bit (ADDER16 x y))"
-  by (smt (z3) ADDER_OR_AND_ab1 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps 
-      ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps)
+  by (smt (z3) ADDER_OR_AND_ab1 ALU.simps ALU_op.simps MUX16_left NOT_WORD.simps 
+      ZERO_OR_NOT.simps ZERO_OUT_WORD.simps)
 (* by (metis ADDER_OR_AND_ab1 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps) *)
 
 lemma ALU_010011: "ALU x y 0 1 0 0 1 1 = (SUB16 x y, ISZERO16 (SUB16 x y), sign_bit (SUB16 x y))"
@@ -864,34 +977,11 @@ lemma ALU_000111: "ALU x y 0 0 0 1 1 1 = (SUB16 y x, ISZERO16 (SUB16 y x), sign_
   oops
 
 lemma ALU_000000: "ALU x y 0 0 0 0 0 0 = (AND16 x y, ISZERO16 (AND16 x y), sign_bit (AND16 x y))"
-  by (metis ADDER_OR_AND_ab0 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps
-      ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps)
-
-lemma NOT_AND_NOT: "NOT (AND (NOT a) (NOT b)) = OR a b"
-  using NOT_NOT by auto
-
-lemma NOT_AND_NOT_Hex: "NOT_Hex (AND_Hex (NOT_Hex a) (NOT_Hex b)) = OR_Hex a b"
-proof (cases a)
-  case A: (Hex a1 a2 a3 a4)
-  then show ?thesis
-  proof (cases b)
-    case (Hex b1 b2 b3 b4)
-    then show ?thesis using NOT_AND_NOT NOT_AND_is_NAND A by force
-  qed
-qed
-
-lemma NOT16_AND16_NOT16: "NOT16 (AND16 (NOT16 a) (NOT16 b)) = OR16 a b"
-proof (cases a)
-  case A: (Word a1 a2 a3 a4)
-  then show ?thesis
-  proof (cases b)
-    case (Word b1 b2 b3 b4)
-    then show ?thesis by (simp add: A NOT_AND_NOT_Hex) 
-  qed
-qed
+  by (metis ADDER_OR_AND_ab0 ALU.simps ALU_op.simps MUX16_left NOT_WORD.simps
+      ZERO_OR_NOT.simps ZERO_OUT_WORD.simps)
 
 lemma ALU_010101: "ALU x y 0 1 0 1 0 1 = (OR16 x y, ISZERO16 (OR16 x y), sign_bit (OR16 x y))"
-  by (smt (verit) ADDER16_OR_AND16.simps ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps
-      NOT16_AND16_NOT16 ZERO_OR_NEGATE.simps ZERO_OR_NEGATE_w01 ZERO_OUT_WORD.simps)
+  by (smt (verit) ADDER16_OR_AND16.simps ALU.simps ALU_op.simps MUX16_left NOT_WORD.simps
+      NOT16_AND16_NOT16 ZERO_OR_NOT.simps ZERO_OR_NOT_w01 ZERO_OUT_WORD.simps)
 
 end
