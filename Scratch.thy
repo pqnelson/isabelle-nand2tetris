@@ -415,8 +415,11 @@ fun Hex_to_nat :: "Hex \<Rightarrow> nat" where
     (if 1=b then 4 else 0) + (if 1=a then 8 else 0)"
 
 fun Word_to_nat :: "Word \<Rightarrow> nat" where
+  "Word_to_nat (Word h1 h2 h3 h4) = (Hex_to_nat h4) + 16*(Hex_to_nat h3) + 256*(Hex_to_nat h2) + 4096*(Hex_to_nat h1)"
+(*
+fun Word_to_nat :: "Word \<Rightarrow> nat" where
   "Word_to_nat (Word h1 h2 h3 h4) = (Hex_to_nat h1) + 16*(Hex_to_nat h2) + 256*(Hex_to_nat h3) + 4096*(Hex_to_nat h4)"
-
+*)
 fun nat_to_Hex :: "nat \<Rightarrow> Hex" where
 "nat_to_Hex n = (let m = (n mod 16) in
  if m = 0 then (Hex 0 0 0 0)
@@ -482,7 +485,7 @@ proof (cases w)
   have A2: "Hex_to_nat w1 \<le> 15 \<and> Hex_to_nat w2 \<le> 15 \<and> Hex_to_nat w3 \<le> 15 \<and> Hex_to_nat w4 \<le> 15"
     using A1 Hex_unsigned_max
     by (metis eval_nat_numeral(2) less_Suc_eq_le semiring_norm(26) semiring_norm(27))
-  moreover have "Word_to_nat w = (Hex_to_nat w1) + 16*(Hex_to_nat w2) + 256*(Hex_to_nat w3) + 4096*(Hex_to_nat w4)"
+  moreover have "Word_to_nat w = (Hex_to_nat w4) + 16*(Hex_to_nat w3) + 256*(Hex_to_nat w2) + 4096*(Hex_to_nat w1)"
     by (simp add: A1)
   ultimately have A3: "Word_to_nat w < 16 + 16*15 + 256*15 + 4096*15"
     by auto
@@ -771,8 +774,7 @@ proof (cases a)
   then show ?thesis
   proof (cases b)
     case (Hex b1 b2 b3 b4)
-    then show ?thesis
-      by (smt (verit) A ADDER_Hex.simps AND_1_0 AND_1_1 AND_def FULLADDER_101 FULLADDER_110 FULLADDER_def NAND.simps(1) bit_not_zero_iff snd_conv split_beta)
+    then show ?thesis by (simp add: A FULLADDER_comm)
   qed
 qed
 
@@ -783,6 +785,16 @@ in let (s3,c3) = ADDER_Hex a3 b3 c4
 in let (s2,c2) = ADDER_Hex a2 b2 c3
 in let (s1,c1) = ADDER_Hex a1 b1 c2
 in (Word s1 s2 s3 s4))"
+
+lemma ADDER16_alias: "(s4,c4) = ADDER_Hex a4 b4 0 \<and> (s3,c3) = ADDER_Hex a3 b3 c4
+  \<and> (s2,c2) = ADDER_Hex a2 b2 c3 \<and> (s1,c1) = ADDER_Hex a1 b1 c2
+ \<longrightarrow> ADDER16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4) = (Word s1 s2 s3 s4)"
+  by (metis (no_types, lifting) ADDER16.simps split_conv)
+
+lemma ADDER16_alias2: "(s4,c4) = ADDER_Hex a4 b4 0 \<longrightarrow> (s3,c3) = ADDER_Hex a3 b3 c4
+  \<longrightarrow> (s2,c2) = ADDER_Hex a2 b2 c3 \<longrightarrow> (s1,c1) = ADDER_Hex a1 b1 c2
+ \<longrightarrow> ADDER16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4) = (Word s1 s2 s3 s4)"
+  by (metis (no_types, lifting) ADDER16.simps split_conv)
 
 lemma ADDER16_0b: "ADDER16 (Word 0 0 0 0) b = b"
 proof (cases b)
@@ -815,7 +827,59 @@ proof (cases a)
     let ?c1 = "snd ?x1"
     let ?s1 = "fst ?x1"
     have A1: "ADDER16 a b = Word ?s1 ?s2 ?s3 ?s4" by (simp add: A B split_beta)
-    then show ?thesis sorry
+    moreover have A2: "Word_to_nat a = (Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)"
+      by (simp add: A)
+    moreover have A3: "Word_to_nat b = (Hex_to_nat b4) + 16*(Hex_to_nat b3) + 256*(Hex_to_nat b2) + 4096*(Hex_to_nat b1)"
+      by (simp add: B)
+    moreover have AA4: "(Hex_to_nat a4) + (Hex_to_nat b4) = (Hex_to_nat ?s4) + 16*(if 1=?c4 then 1 else 0)"
+      by (smt (verit) ADDER_Hex_check2 ADDER_Hex_check3 add.commute add.right_neutral bit.exhaust mult_1_right mult_zero_right prod.collapse)
+    moreover have AA3: "(Hex_to_nat a3) + (Hex_to_nat b3) + (if 1=?c4 then 1 else 0)
+                   = (Hex_to_nat ?s3) + 16*(if 1=?c3 then 1 else 0)"
+      by (smt (verit, best) ADDER_Hex_check2 ADDER_Hex_check3 ADDER_Hex_check_carry2 ADDER_Hex_check_carry3 add.commute add_cancel_right_right bit.exhaust mult.comm_neutral mult_eq_0_iff prod.collapse)
+    moreover have AA2: "(Hex_to_nat a2) + (Hex_to_nat b2) + (if 1=?c3 then 1 else 0)
+                   = (Hex_to_nat ?s2) + 16*(if 1=?c2 then 1 else 0)"
+      by (smt (verit, best) ADDER_Hex_check2 ADDER_Hex_check3 ADDER_Hex_check_carry2 ADDER_Hex_check_carry3 add.commute add_cancel_right_right bit.exhaust mult.comm_neutral mult_eq_0_iff prod.collapse)
+    moreover have AA1: "(Hex_to_nat a1) + (Hex_to_nat b1) + (if 1=?c2 then 1 else 0)
+                   = (Hex_to_nat ?s1) + 16*(if 1=?c1 then 1 else 0)"
+      by (smt (verit, best) ADDER_Hex_check2 ADDER_Hex_check3 ADDER_Hex_check_carry2 ADDER_Hex_check_carry3 add.commute add_cancel_right_right bit.exhaust mult.comm_neutral mult_eq_0_iff prod.collapse)
+    moreover have AA5: "(Hex_to_nat a2) + (Hex_to_nat b2) + (if 1=?c3 then 1 else 0)
+                       + (16 :: nat)*((Hex_to_nat a1) + (Hex_to_nat b1))
+                  = (Hex_to_nat ?s2)
+                    + (16 :: nat)*((Hex_to_nat ?s1) 
+                                   + (16 :: nat)*(if 1=?c1 then (1 :: nat) else (0 :: nat)))"
+      using AA1 AA2 add.commute add.left_commute distrib_left_numeral by auto
+    ultimately have A4: "(Hex_to_nat a4) + (Hex_to_nat b4) 
+                    + (16 :: nat)*((Hex_to_nat a3) + (Hex_to_nat b3)
+                          + (16 :: nat)*((Hex_to_nat a2) + (Hex_to_nat b2)
+                                + (16 :: nat)*((Hex_to_nat a1) + (Hex_to_nat b1))))
+                  = (Hex_to_nat ?s4)
+                   + (16 :: nat)*((Hex_to_nat ?s3)
+                         + (16 :: nat)*((Hex_to_nat ?s2) 
+                                + (16 :: nat)*((Hex_to_nat ?s1) 
+                                      + (16 :: nat)*(if 1=?c1 then (1 :: nat) else (0 :: nat)))))"
+      by auto
+    have "(Word_to_nat a)
+             + (Hex_to_nat b4) + 16*(Hex_to_nat b3)
+             + 256*(Hex_to_nat b2)
+             + 4096*(Hex_to_nat b1)
+           = (Hex_to_nat ?s4)
+             + 16*(Hex_to_nat ?s3)
+             + 256*(Hex_to_nat ?s2)
+             + 4096*((Hex_to_nat ?s1) + 16*(if 1 = ?c1 then 1 else 0))"
+      using A4 nat_distrib A Word_to_nat.simps by auto
+    then have "(Word_to_nat a) + (Word_to_nat b) = (Word_to_nat (ADDER16 a b)) + 4096*16*(if 1 = ?c1 then 1 else 0)"
+      using A1 A3 add.assoc by simp
+    then have "(((Word_to_nat a) + (Word_to_nat b)) :: nat) mod (65536 :: nat)
+               = (((Word_to_nat (ADDER16 a b)) + (4096 :: nat)*16*(if 1 = ?c1 then 1 else 0)) :: nat) mod (65536 :: nat)"
+      by force
+    then have "((Word_to_nat a) + (Word_to_nat b)) mod 65536
+               = (Word_to_nat (ADDER16 a b)) mod 65536"
+      using Euclidean_Rings.euclidean_semiring_cancel_class.mod_mult_self2
+      by auto
+    then have "((Word_to_nat a) + (Word_to_nat b)) mod 65536
+               = (Word_to_nat (ADDER16 a b))"
+      using Word_to_nat_mod65536 by auto
+    then show ?thesis by simp
   qed
 qed
 
@@ -828,6 +892,44 @@ proof (cases x)
     then show ?thesis by (simp add: A1 ADDER_Hex_comm)
   qed
 qed
+
+lemma FULLADDER_assoc_fst: "(sxy,cxy) = FULLADDER x y c1 \<and> (syz,cyz) = FULLADDER y z c2
+\<longrightarrow> fst (FULLADDER sxy z c2) = fst (FULLADDER x syz c1)"
+proof (cases x)
+  case A1: zero
+  then have "FULLADDER sxy z c2 \<noteq> FULLADDER x syz c1 \<or> fst (FULLADDER sxy z c2) = fst (FULLADDER x syz c1)"
+      by auto
+  then show ?thesis
+    by (smt (z3) A1 FULLADDER_00c FULLADDER_011 FULLADDER_0b0 FULLADDER_110 FULLADDER_111 FULLADDER_comm bit_not_one_iff fst_conv)
+next
+  case one
+  then show ?thesis
+    by (smt (z3) FULLADDER_000 FULLADDER_001 FULLADDER_010 FULLADDER_011 FULLADDER_100 FULLADDER_101 FULLADDER_110 FULLADDER_111 bit_not_zero_iff fst_conv)
+qed
+
+lemma FULLADDER_assoc_snd: "(sxy,cxy) = FULLADDER x y c1 \<and> (syz,cyz) = FULLADDER y z c2
+\<longrightarrow> XOR cxy (snd (FULLADDER sxy z c2)) = XOR cyz (snd (FULLADDER x syz c1))"
+  by (smt (z3) FULLADDER_000 FULLADDER_001 FULLADDER_010 FULLADDER_011 FULLADDER_100 FULLADDER_101 FULLADDER_110 FULLADDER_111 Pair_inject XOR_0_1 XOR_1_0 bit_not_one_iff eq_snd_iff)
+
+lemma ADDER_Hex_assoc0: "(sxy,cxy) = ADDER_Hex x y 0 \<and>
+(syz,cyz) = ADDER_Hex y z 0 \<longrightarrow> ADDER_Hex x syz 0 = ADDER_Hex sxy z 0"
+proof (cases cxy)
+  case A1: zero
+  then show ?thesis
+  proof (cases cyz)
+    case zero
+    then show ?thesis sorry
+  next
+    case one
+    then show ?thesis sorry
+  qed
+next
+  case one
+  then show ?thesis sorry
+qed
+
+lemma ADDER16_assoc: "ADDER16 a (ADDER16 b c) = ADDER16 (ADDER16 a b) c" 
+  sorry
 
 fun INC16 :: \<open>Word \<Rightarrow> Word\<close> where
 "INC16 a = ADDER16 a (Word 0 0 0 1)"
@@ -849,8 +951,38 @@ lemma NEGATE16_zero: "NEGATE16 (Word 0 0 0 0) = (Word 0 0 0 0)"
 lemma NEGATE16_one: "NEGATE16 (Word 0 0 0 1) = (Word XF XF XF XF)"
   using INC16_fffe NOT16_one by auto
 
+lemma INC_negate_one: "INC16 (NEGATE16 (Word 0 0 0 1)) = Word 0 0 0 0"
+  using INC16_ffff NEGATE16_one by presburger
+
 fun SUB16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
 "SUB16 x y = ADDER16 x (NEGATE16 y)"
+
+lemma FULLADDER_x_not_x: "FULLADDER x (NOT x) 0 = (1, 0)"
+  by (metis FULLADDER_010 FULLADDER_100 NOT_0 NOT_1 bit.exhaust)
+
+lemma ADDER_Hex_x_not_x_0: "ADDER_Hex x (NOT_Hex x) 0 = (XF,0)"
+proof (cases x)
+  case (Hex x1 x2 x3 x4)
+  then show ?thesis using FULLADDER_x_not_x by force
+qed
+
+lemma ADDER16_x_not_x: "ADDER16 x (NOT16 x) = (Word XF XF XF XF)"
+proof (cases x)
+  case A1: (Word x1 x2 x3 x4)
+  have A2: "(XF,0) = ADDER_Hex x4 (NOT_Hex x4) 0
+\<and> (XF,0) = ADDER_Hex x3 (NOT_Hex x3) 0
+\<and> (XF,0) = ADDER_Hex x2 (NOT_Hex x2) 0
+\<and> (XF,0) = ADDER_Hex x1 (NOT_Hex x1) 0" by (simp add: ADDER_Hex_x_not_x_0)
+  have "x = (Word x1 x2 x3 x4)
+\<and> NOT16 x = (Word (NOT_Hex x1) (NOT_Hex x2) (NOT_Hex x3) (NOT_Hex x4))"
+    using A1 by simp
+  then show ?thesis
+    using A2 ADDER16_alias by auto
+qed
+
+lemma SUB16_x_x: "SUB16 x x = (Word 0 0 0 0)"
+  by (metis ADDER16_assoc ADDER16_x_not_x INC16.elims INC16_ffff NEGATE16.elims SUB16.elims)
+
 
 fun DEC16 :: \<open>Word \<Rightarrow> Word\<close> where
 "DEC16 x = SUB16 x (Word 0 0 0 1)"
@@ -862,6 +994,25 @@ lemma DEC_as_minus_one_plus_y: "ADDER16 (NEGATE16 (Word 0 0 0 1)) x = DEC16 x"
 
 lemma NOT16_zero: "NOT16 (Word 0 0 0 0) = Word XF XF XF XF"
   by (simp add: zero_Hex_def)
+
+(*
+lemma NEGATE_iff_sums_to_zero: "y = NEGATE16 x \<longleftrightarrow> ADDER16 x y = (Word 0 0 0 0)"
+proof
+  assume "y = NEGATE16 x"
+  then show "ADDER16 x y = (Word 0 0 0 0)" using SUB16_x_x by auto
+next
+  assume A1: "ADDER16 x y = (Word 0 0 0 0)"
+  then show "y = NEGATE16 x"
+  proof (cases x)
+    case A2: (Word x1 x2 x3 x4)
+    then show ?thesis
+    proof (cases y)
+      case (Word y1 y2 y3 y4)
+      then show ?thesis sorry
+    qed
+  qed
+qed
+*)
 
 fun ZERO_OUT_WORD :: \<open>Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
 "ZERO_OUT_WORD w zr = MUX16 w (Word 0 0 0 0) zr"
@@ -900,14 +1051,20 @@ fun ALU_op :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> bit
 lemma ALU_11111: "ALU_op x y 1 1 1 1 1 = Word XF XF XF XE"
   using ADDER_OR_AND_ab1 ZERO_OR_NOT_w11 by auto
 
+lemma ALU_op_00001: "ALU_op x y 0 0 0 0 1 = ADDER16 x y"
+  by simp
+
 lemma ALU_op_00110: "ALU_op x y 0 0 1 1 0 = x"
   using AND16_x_FFFF NOT16_zero by auto
 
+lemma ALU_op_00111: "ALU_op x y 0 0 1 1 1 = DEC16 x"
+  using ADDER_OR_AND_ab1 ALU_op.simps DEC_is_add_neg NEGATE16_one ZERO_OR_NOT_w00 ZERO_OR_NOT_w11 by presburger
+
+lemma ALU_op_01111: "ALU_op x y 0 1 1 1 1 = DEC16 (NOT16 x)"
+  using INC16_fffe NOT16_one by auto
+
 lemma ALU_op_11000: "ALU_op x y 1 1 0 0 0 = y"
   using AND16_FFFF_x NOT16_zero by auto
-
-lemma ALU_op_00001: "ALU_op x y 0 0 0 0 1 = ADDER16 x y"
-  by simp
 
 lemma ALU_op_11001: "ALU_op x y 1 1 0 0 1 = DEC16 y"
 proof-
@@ -915,9 +1072,6 @@ proof-
   then show ?thesis
     by (metis (no_types, lifting) ADDER16.simps ADDER16_a0 ADDER_Hex.simps DEC_as_minus_one_plus_y FULLADDER_010 FULLADDER_100 INC16.simps NEGATE16.simps NOT16.simps NOT_0 NOT_1 NOT_Hex.simps one_Hex_def zero_Hex_def)
 qed
-
-lemma ALU_op_00111: "ALU_op x y 0 0 1 1 1 = DEC16 x"
-  using ADDER16_comm ALU_op_11001 by auto
 
 fun ALU :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word * bit * bit\<close> where
 "ALU x y zx nx zy ny f no = (let sym = ALU_op x y zx nx zy ny f
