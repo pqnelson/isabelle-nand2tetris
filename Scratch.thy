@@ -2,6 +2,14 @@ theory Scratch
   imports Main "~~/src/HOL/Library/Z2" HOL.Sledgehammer HOL.Nitpick
 begin
 
+
+section \<open>Introduction\<close>
+
+text \<open>This begins with the definition of the NAND logic gate, then builds the other logic gates out
+of it. We then introduce the Hexadecimal counterpart gates, and finally the 16-bit word gates.
+This culminates in the implementation of the Arithmetic Logical Unit (ALU) for the Hack 
+architecture.\<close>
+
 section \<open>Basic Logic Gates\<close>
 
 fun NAND :: \<open>bit \<Rightarrow> bit \<Rightarrow> bit\<close> where
@@ -328,47 +336,51 @@ instance
 end
 
 (*
-abbreviation Two_Hex :: Hex ("2")
-  where \<open>2 \<equiv> Hex 0 0 1 0\<close>
 
-abbreviation Three_Hex :: Hex ("3")
-  where \<open>3 \<equiv> Hex 0 0 1 1\<close>
-
-abbreviation Four_Hex :: Hex ("4")
-  where \<open>4 \<equiv> Hex 0 1 0 0\<close>
-
-abbreviation Five_Hex :: Hex ("5")
-  where \<open>5 \<equiv> Hex 0 1 0 1\<close>
-
-abbreviation Six_Hex :: Hex ("6")
-  where \<open>6 \<equiv> Hex 0 1 1 0\<close>
-
-abbreviation Seven_Hex :: Hex ("7")
-  where \<open>7 \<equiv> Hex 0 1 1 1\<close>
-
-abbreviation Eight_Hex :: Hex ("8")
-  where \<open>8 \<equiv> Hex 1 0 0 0\<close>
-
-abbreviation A_Hex :: Hex ("A")
-  where \<open>A \<equiv> Hex 1 0 1 0\<close>
-
-abbreviation B_Hex :: Hex ("B")
-  where \<open>B \<equiv> Hex 1 0 1 1\<close>
-
-abbreviation C_Hex :: Hex ("C")
-  where \<open>C \<equiv> Hex 1 1 0 0\<close>
-
-abbreviation D_Hex :: Hex ("D")
-  where \<open>D \<equiv> Hex 1 1 0 1\<close>
-
-abbreviation E_Hex :: Hex ("E")
-  where \<open>E \<equiv> Hex 1 1 1 0\<close>
-
-abbreviation F_Hex :: Hex ("F")
-  where \<open>F \<equiv> Hex 1 1 1 1\<close>
-
-lemma "F = Hex 1 1 1 1" by auto
+abbreviation xF :: Hex where "xF \<equiv> Hex 1 1 1 1"
 *)
+
+abbreviation Two_Hex :: Hex ("X2")
+  where \<open>X2 \<equiv> Hex 0 0 1 0\<close>
+
+abbreviation Three_Hex :: Hex ("X3")
+  where \<open>X3 \<equiv> Hex 0 0 1 1\<close>
+
+abbreviation Four_Hex :: Hex ("X4")
+  where \<open>X4 \<equiv> Hex 0 1 0 0\<close>
+
+abbreviation Five_Hex :: Hex ("X5")
+  where \<open>X5 \<equiv> Hex 0 1 0 1\<close>
+
+abbreviation Six_Hex :: Hex ("X6")
+  where \<open>X6 \<equiv> Hex 0 1 1 0\<close>
+
+abbreviation Seven_Hex :: Hex ("X7")
+  where \<open>X7 \<equiv> Hex 0 1 1 1\<close>
+
+abbreviation Eight_Hex :: Hex ("X8")
+  where \<open>X8 \<equiv> Hex 1 0 0 0\<close>
+
+abbreviation A_Hex :: Hex ("XA")
+  where \<open>XA \<equiv> Hex 1 0 1 0\<close>
+
+abbreviation B_Hex :: Hex ("XB")
+  where \<open>XB \<equiv> Hex 1 0 1 1\<close>
+
+abbreviation C_Hex :: Hex ("XC")
+  where \<open>XC \<equiv> Hex 1 1 0 0\<close>
+
+abbreviation D_Hex :: Hex ("XD")
+  where \<open>XD \<equiv> Hex 1 1 0 1\<close>
+
+abbreviation E_Hex :: Hex ("XE")
+  where \<open>XE \<equiv> Hex 1 1 1 0\<close>
+
+abbreviation F_Hex :: Hex ("XF")
+  where \<open>XF \<equiv> Hex 1 1 1 1\<close>
+
+lemma "XF = Hex 1 1 1 1" by auto
+
 
 fun Hex_of_list :: "bit list \<Rightarrow> Hex" where
   "Hex_of_list [] = Hex 0 0 0 0" |
@@ -454,31 +466,17 @@ proof (cases x)
   case (Hex x1 x2 x3 x4)
   thus ?thesis by simp
 qed
-(*
-theorem Word_to_nat_to_Word: "nat_to_Word (Word_to_nat w) = w"
-proof (cases w)
-  case A1: (Word x1 x2 x3 x4)
-  hence "Word_to_nat w = (Hex_to_nat x1) + 16*(Hex_to_nat x2) + 256*(Hex_to_nat x3) + 4096*(Hex_to_nat x4)"
-    by simp
-  hence "nat_to_Word (Word_to_nat w) = nat_to_Word ((Hex_to_nat x1) + 16*(Hex_to_nat x2) 
-    + 256*(Hex_to_nat x3) + 4096*(Hex_to_nat x4))"
-    by simp
-  hence "nat_to_Word (Word_to_nat w) = Word x1 x2 x3 x4"
-    using Hex_to_nat_mod16 mod_of_prod by force
-  then show ?thesis using A1 by auto
-qed
-*)
 
 lemma Hex_unsigned_max: "Hex_to_nat x < 16"
   by (metis Hex_to_nat_mod16 mod_less_divisor zero_less_numeral)
 
 lemma Word_unsigned_max: "Word_to_nat w < 65536"
 proof (cases w)
-  case A1: (Word x1 x2 x3 x4)
-  have A2: "Hex_to_nat x1 \<le> 15 \<and> Hex_to_nat x2 \<le> 15 \<and> Hex_to_nat x3 \<le> 15 \<and> Hex_to_nat x4 \<le> 15"
+  case A1: (Word w1 w2 w3 w4)
+  have A2: "Hex_to_nat w1 \<le> 15 \<and> Hex_to_nat w2 \<le> 15 \<and> Hex_to_nat w3 \<le> 15 \<and> Hex_to_nat w4 \<le> 15"
     using A1 Hex_unsigned_max
     by (metis eval_nat_numeral(2) less_Suc_eq_le semiring_norm(26) semiring_norm(27))
-  moreover have "Word_to_nat w = (Hex_to_nat x1) + 16*(Hex_to_nat x2) + 256*(Hex_to_nat x3) + 4096*(Hex_to_nat x4)"
+  moreover have "Word_to_nat w = (Hex_to_nat w1) + 16*(Hex_to_nat w2) + 256*(Hex_to_nat w3) + 4096*(Hex_to_nat w4)"
     by (simp add: A1)
   ultimately have A3: "Word_to_nat w < 16 + 16*15 + 256*15 + 4096*15"
     by auto
@@ -581,7 +579,7 @@ fun NOT16 :: \<open>Word \<Rightarrow> Word\<close> where
 
 lemma NOT16_NOT16: "NOT16 (NOT16 w) = w"
 proof (cases w)
-  case (Word x1 x2 x3 x4)
+  case (Word w1 w2 w3 w4)
   then show ?thesis using NOT_NOT_Hex by auto
 qed
 
@@ -596,7 +594,7 @@ fun MUX16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> Word
 
 lemma MUX16_left [simp]: "MUX16 a b 0 = a"
 proof (cases a)
-  case A1: (Word x1 x2 x3 x4)
+  case A1: (Word a1 a2 a3 a4)
   then show ?thesis
   proof (cases b)
     case A2: (Word y1 y2 y3 y4)
@@ -606,7 +604,7 @@ qed
 
 lemma MUX16_right [simp]: "MUX16 a b 1 = b"
 proof (cases a)
-  case A1: (Word x1 x2 x3 x4)
+  case A1: (Word a1 a2 a3 a4)
   then show ?thesis
   proof (cases b)
     case A2: (Word y1 y2 y3 y4)
@@ -625,13 +623,13 @@ in (Hex s1 s2 s3 s4, c1))"
 
 lemma ADDER_Hex_0b0: "ADDER_Hex (Hex 0 0 0 0) b 0 = (b, 0)"
 proof (cases b)
-  case A1: (Hex x1 x2 x3 x4)
+  case A1: (Hex b1 b2 b3 b4)
   then show ?thesis using A1 FULLADDER_0b0 by auto
 qed
 
 lemma ADDER_Hex_a00: "ADDER_Hex a (Hex 0 0 0 0) 0 = (a, 0)"
 proof (cases a)
-  case A1: (Hex x1 x2 x3 x4)
+  case A1: (Hex a1 a2 a3 a4)
   then show ?thesis using A1 FULLADDER_a00 by auto
 qed
 
@@ -663,16 +661,16 @@ proof (cases a)
   qed
 qed
 
-lemma ADDER_Hex_c_01: "(s,1) = ADDER_Hex (Hex 0 a2 a3 a4) (Hex 1 b2 b3 b4) 0 \<longrightarrow> 
-(Hex_to_nat (Hex 1 b2 b3 b4)) + (Hex_to_nat (Hex 0 a2 a3 a4)) = 16 + Hex_to_nat s"
+lemma ADDER_Hex_cc_01: "(s,1) = ADDER_Hex (Hex 0 a2 a3 a4) (Hex 1 b2 b3 b4) c \<longrightarrow> 
+(Hex_to_nat (Hex 1 b2 b3 b4)) + (Hex_to_nat (Hex 0 a2 a3 a4)) + (if (c=1) then 1 else 0) = 16 + Hex_to_nat s"
  by (simp add: FULLADDER_a00)
 
-lemma ADDER_Hex_c_10: "(s,1) = ADDER_Hex (Hex 1 a2 a3 a4) (Hex 0 b2 b3 b4) 0 \<longrightarrow>
-(Hex_to_nat (Hex 0 b2 b3 b4)) + (Hex_to_nat (Hex 1 a2 a3 a4)) = 16 + Hex_to_nat s"
+lemma ADDER_Hex_cc_10: "(s,1) = ADDER_Hex (Hex 1 a2 a3 a4) (Hex 0 b2 b3 b4) c \<longrightarrow>
+(Hex_to_nat (Hex 0 b2 b3 b4)) + (Hex_to_nat (Hex 1 a2 a3 a4)) + (if (c=1) then 1 else 0) = 16 + Hex_to_nat s"
  by (simp add: FULLADDER_a00)
 
-lemma ADDER_Hex_c_11: "(s,1) = ADDER_Hex (Hex 1 a2 a3 a4) (Hex 1 b2 b3 b4) 0 \<longrightarrow>
-(Hex_to_nat (Hex 1 b2 b3 b4)) + (Hex_to_nat (Hex 1 a2 a3 a4)) = 16 + Hex_to_nat s"
+lemma ADDER_Hex_cc_11: "(s,1) = ADDER_Hex (Hex 1 a2 a3 a4) (Hex 1 b2 b3 b4) c \<longrightarrow>
+(Hex_to_nat (Hex 1 b2 b3 b4)) + (Hex_to_nat (Hex 1 a2 a3 a4))+ (if (c=1) then 1 else 0) = 16 + Hex_to_nat s"
  by (simp add: FULLADDER_a00)
 
 lemma ADDER_Hex_check3: "(s,1 :: bit) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = 16 + (Hex_to_nat s)"
@@ -681,13 +679,37 @@ proof (cases a)
   then show ?thesis
   proof (cases b)
     case (Hex b1 b2 b3 b4)
-    then show ?thesis using A ADDER_Hex_c_01 ADDER_Hex_c_10 by simp
+    then show ?thesis using A ADDER_Hex_cc_01 ADDER_Hex_cc_10 by simp
   qed
 qed
 
 theorem ADDER_Hex_checks: "(s,c :: bit) = ADDER_Hex a b 0 \<longrightarrow>
   (Hex_to_nat a) + (Hex_to_nat b) = (if (c=1) then 16 else 0) + (Hex_to_nat s)"
   by (simp add: ADDER_Hex_check2 ADDER_Hex_check3)
+
+lemma ADDER_Hex_check_carry2: "(s,0 :: bit) = ADDER_Hex a b 1 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) + 1 = (Hex_to_nat s)"
+proof (cases a)
+  case A1: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case (Hex x1 x2 x3 x4)
+    then show ?thesis using A1 ADDER_Hex_check by simp
+  qed
+qed
+
+lemma ADDER_Hex_check_carry3: "(s,1 :: bit) = ADDER_Hex a b 1 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) + 1 = 16 + (Hex_to_nat s)"
+proof (cases a)
+  case A: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case (Hex b1 b2 b3 b4)
+    then show ?thesis using A ADDER_Hex_cc_01 ADDER_Hex_cc_10 by simp
+  qed
+qed
+
+theorem ADDER_Hex_check_carry: "(s, c :: bit) = ADDER_Hex a b 1 \<longrightarrow>
+  (Hex_to_nat a) + (Hex_to_nat b) + 1 = (if (c=1) then 16 else 0) + (Hex_to_nat s)"
+  using ADDER_Hex_check_carry2 ADDER_Hex_check_carry3 by auto
 
 (* Add two words together, does not signal overflow or underflow, discards carry bit. *)
 fun ADDER16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
@@ -710,7 +732,27 @@ proof (cases a)
 qed
 
 lemma ADDER16_check: "Word_to_nat (ADDER16 a b) = ((Word_to_nat a) + (Word_to_nat b)) mod 65536"
-  oops
+proof (cases a)
+  case A: (Word a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case B: (Word b1 b2 b3 b4)
+    let ?x4 = "ADDER_Hex a4 b4 0"
+    let ?c4 = "snd ?x4"
+    let ?s4 = "fst ?x4"
+    let ?x3 = "ADDER_Hex a3 b3 ?c4"
+    let ?c3 = "snd ?x3"
+    let ?s3 = "fst ?x3"
+    let ?x2 = "ADDER_Hex a2 b2 ?c3"
+    let ?c2 = "snd ?x2"
+    let ?s2 = "fst ?x2"
+    let ?x1 = "ADDER_Hex a1 b1 ?c2"
+    let ?c1 = "snd ?x1"
+    let ?s1 = "fst ?x1"
+    have A1: "ADDER16 a b = Word ?s1 ?s2 ?s3 ?s4" by (simp add: A B split_beta)
+    then show ?thesis sorry
+  qed
+qed
 
 fun INC16 :: \<open>Word \<Rightarrow> Word\<close> where
 "INC16 a = ADDER16 a (Word 0 0 0 1)"
@@ -719,6 +761,21 @@ section \<open>Arithmetic Logical Unit\<close>
 
 fun NEGATE16 :: \<open>Word \<Rightarrow> Word\<close> where
 "NEGATE16 w = INC16 (NOT16 w)"
+
+lemma INC16_ffff: "INC16 (Word XF XF XF XF) = (Word 0 0 0 0)"
+  by (simp add: one_Hex_def zero_Hex_def)
+
+lemma NEGATE16_zero: "NEGATE16 (Word 0 0 0 0) = (Word 0 0 0 0)"
+  by (metis (mono_tags, lifting) INC16_ffff NEGATE16.elims NOT16.simps NOT_0 NOT_Hex.simps zero_Hex_def)
+
+fun SUB16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
+"SUB16 x y = ADDER16 x (NEGATE16 y)"
+
+fun DEC16 :: \<open>Word \<Rightarrow> Word\<close> where
+"DEC16 x = SUB16 x (Word 0 0 0 1)"
+
+lemma NOT16_zero: "NOT16 (Word 0 0 0 0) = Word XF XF XF XF"
+  by (simp add: zero_Hex_def)
 
 fun ZERO_OUT_WORD :: \<open>Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
 "ZERO_OUT_WORD w zr = MUX16 w (Word 0 0 0 0) zr"
@@ -731,5 +788,84 @@ fun NEGATE_WORD :: \<open>Word \<Rightarrow> bit \<Rightarrow> Word\<close> wher
 
 fun ZERO_OR_NEGATE :: \<open>Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word\<close> where
 "ZERO_OR_NEGATE w zr ng = (NEGATE_WORD (ZERO_OUT_WORD w zr) ng)"
+
+lemma ZERO_OR_NEGATE_w01 [simp]: "ZERO_OR_NEGATE w 0 1 = NEGATE16 w" by simp
+
+lemma ZERO_OR_NEGATE_w10 [simp]: "ZERO_OR_NEGATE w 1 0 = (Word 0 0 0 0)" by simp
+
+fun ADDER16_OR_AND16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
+"ADDER16_OR_AND16 a b f = MUX16 (AND16 a b) (ADDER16 a b) f"
+
+lemma ADDER_OR_AND_ab1 [simp]: "ADDER16_OR_AND16 a b 1 = ADDER16 a b"
+  by simp
+
+lemma ADDER_OR_AND_ab0 [simp]: "ADDER16_OR_AND16 a b 0 = AND16 a b"
+  by simp
+
+(* The ALU operation without transforming the output. *)
+fun ALU_op :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word\<close> where
+"ALU_op x y zx nx zy ny f = (ADDER16_OR_AND16 (ZERO_OR_NEGATE x zx nx) (ZERO_OR_NEGATE y zy ny) f)"
+
+fun ALU :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word * bit * bit\<close> where
+"ALU x y zx nx zy ny f no = (let sym = ALU_op x y zx nx zy ny f
+in let output = MUX16 sym (NOT16 sym) no
+in (output, ISZERO16 output, sign_bit output))"
+
+text \<open>To prove correctness of the ALU implementation, we should check each of the 19 cases for the
+possible outputs.\<close>
+lemma ALU_101010: "ALU x y 1 0 1 0 1 0 = (Word 0 0 0 0, 1, 0)"
+  by (simp add: zero_Hex_def)
+
+lemma ALU_111111: "ALU x y 1 1 1 1 1 1 = (Word 0 0 0 1, 0, 0)"
+  oops
+
+lemma ALU_111010: "ALU x y 1 1 1 0 1 0 = (Word xF xF xF xF, 0, 1)" 
+  oops
+
+lemma ALU_001100: "ALU x y 0 0 1 1 0 0 = (x, ISZERO16 x, sign_bit x)" sledgehammer (add: ADDER16_a0 ISZERO16_zero)
+  oops
+
+lemma ALU_110000: "ALU x y 1 1 0 0 0 0 = (y, ISZERO16 y, sign_bit y)"
+  oops
+
+lemma ALU_001101: "ALU x y 0 0 1 1 0 1 = (NOT16 x, ISZERO16 (NOT16 x), sign_bit (NOT16 x))"
+  oops
+
+lemma ALU_110001: "ALU x y 1 1 0 0 0 1 = (NOT16 y, ISZERO16 (NOT16 y), sign_bit (NOT16 y))"
+  oops
+
+lemma ALU_001111: "ALU x y 0 0 1 1 1 1 = (NEGATE16 x, ISZERO16 (NEGATE16 x), sign_bit (NEGATE16 x))"
+  oops
+
+lemma ALU_110011: "ALU x y 1 1 0 0 1 1 = (NEGATE16 y, ISZERO16 (NEGATE16 y), sign_bit (NEGATE16 y))"
+  oops
+
+lemma ALU_011111: "ALU x y 0 1 1 1 1 1 = (INC16 x, ISZERO16 (INC16 x), sign_bit (INC16 x))"
+  oops
+
+lemma ALU_110111: "ALU x y 1 1 0 1 1 1 = (INC16 y, ISZERO16 (INC16 y), sign_bit (INC16 y))"
+  oops
+
+lemma ALU_001110: "ALU x y 0 0 1 1 1 0 = (DEC16 x, ISZERO16 (DEC16 x), sign_bit (DEC16 x))"
+  oops
+
+lemma ALU_110010: "ALU x y 1 1 0 0 1 0 = (DEC16 y, ISZERO16 (DEC16 y), sign_bit (DEC16 y))"
+  oops
+
+lemma ALU_000010: "ALU x y 0 0 0 0 1 0 = (ADDER16 x y, ISZERO16 (ADDER16 x y), sign_bit (ADDER16 x y))"
+  by (smt (z3) ADDER_OR_AND_ab1 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps)
+(* by (metis ADDER_OR_AND_ab1 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps) *)
+
+lemma ALU_010011: "ALU x y 0 1 0 0 1 1 = (SUB16 x y, ISZERO16 (SUB16 x y), sign_bit (SUB16 x y))"
+  oops
+
+lemma ALU_000111: "ALU x y 0 0 0 1 1 1 = (SUB16 y x, ISZERO16 (SUB16 y x), sign_bit (SUB16 y x))"
+  oops
+
+lemma ALU_000000: "ALU x y 0 0 0 0 0 0 = (AND16 x y, ISZERO16 (AND16 x y), sign_bit (AND16 x y))"
+  by (metis ADDER_OR_AND_ab0 ALU.simps ALU_op.simps MUX16_left NEGATE_WORD.simps ZERO_OR_NEGATE.simps ZERO_OUT_WORD.simps)
+
+lemma ALU_010101: "ALU x y 0 1 0 1 0 1 = (OR16 x y, ISZERO16 (OR16 x y), sign_bit (OR16 x y))"
+  oops
 
 end
