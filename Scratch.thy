@@ -911,28 +911,43 @@ lemma FULLADDER_assoc_snd: "(sxy,cxy) = FULLADDER x y c1 \<and> (syz,cyz) = FULL
 \<longrightarrow> XOR cxy (snd (FULLADDER sxy z c2)) = XOR cyz (snd (FULLADDER x syz c1))"
   by (smt (z3) FULLADDER_000 FULLADDER_001 FULLADDER_010 FULLADDER_011 FULLADDER_100 FULLADDER_101 FULLADDER_110 FULLADDER_111 Pair_inject XOR_0_1 XOR_1_0 bit_not_one_iff eq_snd_iff)
 
-lemma ADDER_Hex_assoc0: "(sxy,cxy) = ADDER_Hex x y 0 \<and>
-(syz,cyz) = ADDER_Hex y z 0 \<longrightarrow> ADDER_Hex x syz 0 = ADDER_Hex sxy z 0"
-proof (cases cxy)
-  case A1: zero
-  then show ?thesis
-  proof (cases cyz)
-    case zero
-    then show ?thesis sorry
-  next
-    case one
-    then show ?thesis sorry
-  qed
-next
-  case one
-  then show ?thesis sorry
-qed
-
-lemma ADDER16_assoc: "ADDER16 a (ADDER16 b c) = ADDER16 (ADDER16 a b) c" 
+lemma ADDER_Hex_assoc0: "(sab,cab) = ADDER_Hex a b 0 \<and>
+(sbc,cbc) = ADDER_Hex b c 0 \<longrightarrow> fst (ADDER_Hex a sbc 0) = fst (ADDER_Hex sab c 0)"
   sorry
+
+lemma (* ADDER16_assoc: *) "ADDER16 a (ADDER16 b c) = ADDER16 (ADDER16 a b) c" 
+  sorry
+
+fun ADDER4 :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
+"ADDER4 a b = fst (ADDER_Hex a b 0)"
+
+fun INC4 :: \<open>Hex \<Rightarrow> Hex\<close> where
+"INC4 h = ADDER4 h 1"
+
+lemma ADDER4_a0: "ADDER4 a 0 = a"
+proof-
+  have "ADDER_Hex a 0 0 = (a,0)" by (simp add: ADDER_Hex_a00 zero_Hex_def)
+  moreover have "fst (ADDER_Hex a 0 0) = fst (a,0)" by (simp add: calculation)
+  ultimately have "ADDER4 a 0 = a" by simp
+  then show ?thesis by simp
+qed
 
 fun INC16 :: \<open>Word \<Rightarrow> Word\<close> where
 "INC16 a = ADDER16 a (Word 0 0 0 1)"
+
+lemma ADDER_Hex_alias: "(s4,c4) = FULLADDER a4 b4 c \<and> (s3,c3) = FULLADDER a3 b3 c4
+    \<and> (s2,c2) = FULLADDER a2 b2 c3 \<and> (s1,c1) = FULLADDER a1 b1 c2 
+    \<longrightarrow> (Hex s1 s2 s3 s4, c1) = ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c"
+  by (metis (no_types, lifting) ADDER_Hex.simps split_conv)
+
+lemma INC4_f: "INC4 (Hex 1 1 1 1) = 0"
+proof-
+  have "FULLADDER 1 1 0 = (0,1) \<and> FULLADDER 1 0 1 = (0,1) \<and> FULLADDER 1 0 1 = (0,1) \<and> FULLADDER 1 0 1 = (0,1)" by simp
+  then have "ADDER_Hex (Hex 1 1 1 1) 1 0 = (Hex 0 0 0 0,1)"
+    by (simp add: one_Hex_def)
+  then show ?thesis
+    by (simp add: zero_Hex_def)
+qed
 
 lemma INC16_fffe: "INC16 (Word XF XF XF XE) = (Word XF XF XF XF)"
   by (simp add: ADDER16_a0 one_Hex_def zero_Hex_def)
@@ -980,8 +995,25 @@ proof (cases x)
     using A2 ADDER16_alias by auto
 qed
 
+lemma "INC16 (ADDER16 x (NOT16 x)) = Word 0 0 0 0"
+  using ADDER16_x_not_x INC16_ffff by auto
+
+(* lemma "(ADDER16 x (INC16 (NOT16 x))) = Word 0 0 0 0" *)
+lemma (* ADDER_Hex_negate: *)
+  "s = (ADDER4 (NOT_Hex a) X1) \<longrightarrow> X0 = (ADDER4 s a)" sledgehammer [isar_proofs] sorry
+
+lemma (* INC_swaps_ADD16: *) "y = (Word XF XF XF XF) \<longrightarrow> ADDER16 x (INC16 y) = INC16 (ADDER16 x y)"
+proof-
+  have "INC16 (Word XF XF XF XF) = (Word 0 0 0 0)" using INC16_ffff by auto
+  then have "ADDER16 x (INC16 (Word XF XF XF XF)) = x"
+    by (simp add: ADDER16_a0)
+  thus ?thesis
+    sorry
+qed
+
 lemma SUB16_x_x: "SUB16 x x = (Word 0 0 0 0)"
-  by (metis ADDER16_assoc ADDER16_x_not_x INC16.elims INC16_ffff NEGATE16.elims SUB16.elims)
+  sorry
+ (* by (metis (no_types) ADDER_Hex_negate zero_neq_one) *)
 
 
 fun DEC16 :: \<open>Word \<Rightarrow> Word\<close> where
