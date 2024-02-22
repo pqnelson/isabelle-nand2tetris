@@ -1,4 +1,6 @@
-theory Scratch
+\<^marker>\<open>creator "Alex Nelson"\<close>
+chapter \<open>Combinational Logic Gates and the ALU\<close>
+theory CombinationalCircuits
   imports Main "~~/src/HOL/Library/Z2" HOL.Sledgehammer
 begin
 
@@ -41,16 +43,16 @@ theorem NOT_NOT: "NOT (NOT a) = a"
 definition AND :: \<open>bit \<Rightarrow> bit \<Rightarrow> bit\<close>
   where [simp]: \<open>AND a b \<equiv> NAND (NAND a b) (NAND a b)\<close>
 
-lemma AND_0_0: "AND (0::bit) (0::bit) \<equiv> (0::bit)"
+lemma AND_0_0: "AND (0::bit) (0::bit) = (0::bit)"
   by simp
 
-lemma AND_0_1: "AND (0::bit) (1::bit) \<equiv> (0::bit)"
+lemma AND_0_1: "AND (0::bit) (1::bit) = (0::bit)"
   by simp
 
-lemma AND_1_0: "AND (1::bit) (0::bit) \<equiv> (0::bit)"
+lemma AND_1_0: "AND (1::bit) (0::bit) = (0::bit)"
   by simp
 
-lemma AND_1_1: "AND (1::bit) (1::bit) \<equiv> (1::bit)"
+lemma AND_1_1: "AND (1::bit) (1::bit) = (1::bit)"
   by simp
 
 lemma AND_a_1 [simp]: "AND a 1 = a"
@@ -75,16 +77,16 @@ lemma NOT_AND_is_NAND: "NOT (AND a b) = NAND a b"
 definition OR :: \<open>bit \<Rightarrow> bit \<Rightarrow> bit\<close>
   where [simp]: \<open>OR a b \<equiv> NAND (NOT a) (NOT b)\<close>
 
-lemma OR_0_0: "OR (0::bit) (0::bit) \<equiv> (0::bit)"
+lemma OR_0_0: "OR (0::bit) (0::bit) = (0::bit)"
   by simp
 
-lemma OR_0_1: "OR (0::bit) (1::bit) \<equiv> (1::bit)"
+lemma OR_0_1: "OR (0::bit) (1::bit) = (1::bit)"
   by simp
 
-lemma OR_1_0: "OR (1::bit) (0::bit) \<equiv> (1::bit)"
+lemma OR_1_0: "OR (1::bit) (0::bit) = (1::bit)"
   by simp
 
-lemma OR_1_1: "OR (1::bit) (1::bit) \<equiv> (1::bit)"
+lemma OR_1_1: "OR (1::bit) (1::bit) = (1::bit)"
   by simp
 
 lemma OR_a_0 [simp]: "OR a 0 = a"
@@ -128,16 +130,14 @@ lemma XOR_1_1: "XOR 1 1 = 0"
   by simp
 
 definition MUX :: \<open>bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit\<close>
-  where [simp]: \<open>MUX a b s \<equiv> NAND (NAND a (NOT s)) (NAND b s)\<close>
-
-theorem MUX_left [simp]: "MUX a b 0 = a"
-  by (case_tac a) auto
-
-theorem MUX_right [simp]: "MUX a b 1 = b"
-  by (case_tac b) auto
+  where \<open>MUX a b s \<equiv> NAND (NAND a (NOT s)) (NAND b s)\<close>
 
 (* MUX_left and right suffice for specifying its behaviour. *)
-declare MUX_def[simp del]
+theorem MUX_left [simp]: "MUX a b 0 = a"
+  using MUX_def by (case_tac a) auto
+
+theorem MUX_right [simp]: "MUX a b 1 = b"
+  using MUX_def by (case_tac b) auto
 
 lemma MUX_alt: "MUX a b s = OR (AND a (NOT s)) (AND b s)"
   using MUX_def NOT_AND_is_NAND by auto
@@ -188,13 +188,13 @@ lemma FULLADDER_00c: "FULLADDER 0 0 c = (c,0)"
   by (metis (full_types) FULLADDER_000 FULLADDER_001 bit.exhaust) 
 
 lemma FULLADDER_0bc: "FULLADDER 0 b c = (XOR b c,AND b c)"
-proof -
-  have "1 = b \<and> 1 = c \<longrightarrow> FULLADDER 0 b c = (XOR b c, AND b c)"
-    by auto
-  then have "1 = b \<longrightarrow> FULLADDER 0 b c = (XOR b c, AND b c)"
-    by force
-  then show ?thesis
-    by (metis (full_types) AND_0_b FULLADDER_00c XOR_0_0 XOR_0_1 bit.exhaust)
+proof - (* 46 ms *)
+  have "\<forall>b. AND 1 b = b"
+    using AND_1_b by blast
+  moreover have "(FULLADDER 0 b c = (XOR b 1, 0) \<and> b \<noteq> 1) \<and> c \<noteq> 0 \<or> FULLADDER 0 b c = (XOR b c, 0) \<and> b \<noteq> 1 \<or> FULLADDER 0 b c = (XOR b c, c) \<and> b \<noteq> 0 \<or> FULLADDER 0 b c = (XOR 1 c, AND b c) \<and> b \<noteq> 0"
+    by (smt (z3) FULLADDER_00c FULLADDER_010 FULLADDER_011 XOR_0_0 XOR_0_1 XOR_1_0 XOR_1_1 bit_not_zero_iff)
+  ultimately show ?thesis
+    by fastforce
 qed
 
 lemma FULLADDER_a0c: "FULLADDER a 0 c = (XOR a c,AND a c)"
