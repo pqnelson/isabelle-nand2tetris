@@ -1,5 +1,5 @@
 theory Scratch
-  imports Main "~~/src/HOL/Library/Z2" HOL.Sledgehammer HOL.Nitpick
+  imports Main "~~/src/HOL/Library/Z2" HOL.Sledgehammer HOL.Nitpick HOL.Orderings "/home/alex/afp/afp-2024-02-20/thys/Datatype_Order_Generator/Order_Generator"
 begin
 
 
@@ -319,6 +319,45 @@ lemma MUX8WAY_101 [simp]: "MUX8WAY a b c d e f g h 1 0 1 = f" by (simp add: MUX8
 lemma MUX8WAY_110 [simp]: "MUX8WAY a b c d e f g h 1 1 0 = g" by (simp add: MUX8WAY_def)
 lemma MUX8WAY_111 [simp]: "MUX8WAY a b c d e f g h 1 1 1 = h" by (simp add: MUX8WAY_def)
 
+
+
+instantiation bit :: ord
+begin
+
+definition less_eq_bit :: \<open>bit \<Rightarrow> bit \<Rightarrow> bool\<close>
+  where \<open>less_eq_bit a b \<equiv> (a=b) \<or> (1=a)\<close>
+
+definition less_bit :: \<open>bit \<Rightarrow> bit \<Rightarrow> bool\<close>
+  where \<open>less_bit a b \<equiv> (1=a) \<and> (0=b)\<close>
+
+instance
+  by standard
+end
+
+lemma bit_less_le_not_le: "(x :: bit) < y \<longleftrightarrow> x \<le> y \<and> \<not> (y \<le> x)"
+  using less_bit_def less_eq_bit_def by force
+
+lemma bit_order_refl [iff]: "(x :: bit) \<le> x"
+  by (simp add: less_eq_bit_def)
+
+lemma bit_order_trans: "(x :: bit) \<le> y \<Longrightarrow> y \<le> z \<Longrightarrow> x \<le> z"
+  using less_eq_bit_def by auto
+
+instantiation bit :: preorder
+begin
+instance
+  by standard (auto simp add: bit_less_le_not_le bit_order_trans)
+end
+
+lemma bit_order_antisym: "(x :: bit) \<le> y \<Longrightarrow> y \<le> x \<Longrightarrow> x = y"
+  using less_eq_bit_def by auto
+
+instantiation bit :: order
+begin
+instance
+  by standard (auto simp add: bit_order_antisym)
+end
+
 section \<open>Hexadecimal and Machine words\<close>
 text \<open>Since the book associated with Nand2Tetris uses Big Endian convention, I follow their
 convention. Realistically, we should refactor this out, so as to force the user to import
@@ -327,6 +366,8 @@ their desired Endianess.\<close>
 lemma "0xFF = 255" by (rule refl)
 
 datatype Hex = Hex bit bit bit bit
+
+derive order "Hex"
 
 instantiation Hex :: zero_neq_one
 begin
@@ -367,6 +408,9 @@ abbreviation Seven_Hex :: Hex ("X7")
 abbreviation Eight_Hex :: Hex ("X8")
   where \<open>X8 \<equiv> Hex 1 0 0 0\<close>
 
+abbreviation Nine_Hex :: Hex ("X9")
+  where \<open>X9 \<equiv> Hex 1 0 0 1\<close>
+
 abbreviation A_Hex :: Hex ("XA")
   where \<open>XA \<equiv> Hex 1 0 1 0\<close>
 
@@ -398,6 +442,8 @@ fun Hex_of_list :: "bit list \<Rightarrow> Hex" where
 
 datatype Word = Word Hex Hex Hex Hex
 
+derive order "Word"
+
 consts to_list :: "'a \<Rightarrow> bit list"
 overloading
   to_list_Hex \<equiv> "to_list :: Hex \<Rightarrow> bit list"
@@ -410,9 +456,12 @@ fun to_list_Word where
   "to_list_Word (Word h1 h2 h3 h4) = (to_list h1) @ (to_list h2) @ (to_list h3) @ (to_list h4)"
 end
 
+fun bit_to_nat :: "bit \<Rightarrow> nat" where
+"bit_to_nat x = (if x=1 then (1::nat) else 0)"
+
 fun Hex_to_nat :: "Hex \<Rightarrow> nat" where
-  "Hex_to_nat (Hex a b c d) = (if 1=d then (1::nat) else 0) + (if 1=c then 2 else 0) +
-    (if 1=b then 4 else 0) + (if 1=a then 8 else 0)"
+  "Hex_to_nat (Hex a b c d) = (bit_to_nat d) + 2*(bit_to_nat c) +
+    4*(bit_to_nat b) + 8*(bit_to_nat a)"
 
 fun Word_to_nat :: "Word \<Rightarrow> nat" where
   "Word_to_nat (Word h1 h2 h3 h4) = (Hex_to_nat h4) + 16*(Hex_to_nat h3) + 256*(Hex_to_nat h2) + 4096*(Hex_to_nat h1)"
@@ -420,24 +469,24 @@ fun Word_to_nat :: "Word \<Rightarrow> nat" where
 fun Word_to_nat :: "Word \<Rightarrow> nat" where
   "Word_to_nat (Word h1 h2 h3 h4) = (Hex_to_nat h1) + 16*(Hex_to_nat h2) + 256*(Hex_to_nat h3) + 4096*(Hex_to_nat h4)"
 *)
-fun nat_to_Hex :: "nat \<Rightarrow> Hex" where
-"nat_to_Hex n = (let m = (n mod 16) in
- if m = 0 then (Hex 0 0 0 0)
- else if m = (1::nat) then (Hex 0 0 0 1)
- else if m = 2 then (Hex 0 0 1 0)
- else if m = 3 then (Hex 0 0 1 1)
- else if m = 4 then (Hex 0 1 0 0)
- else if m = 5 then (Hex 0 1 0 1)
- else if m = 6 then (Hex 0 1 1 0)
- else if m = 7 then (Hex 0 1 1 1)
- else if m = 8 then (Hex 1 0 0 0)
- else if m = 9 then (Hex 1 0 0 1)
- else if m = 10 then (Hex 1 0 1 0)
- else if m = 11 then (Hex 1 0 1 1)
- else if m = 12 then (Hex 1 1 0 0)
- else if m = 13 then (Hex 1 1 0 1)
- else if m = 14 then (Hex 1 1 1 0)
- else (Hex 1 1 1 1))"
+definition nat_to_Hex :: "nat \<Rightarrow> Hex" where
+[simp]: "nat_to_Hex n \<equiv> (case (n mod 16) of
+ 0 \<Rightarrow> (Hex 0 0 0 0)
+ | (Suc 0) \<Rightarrow> (Hex 0 0 0 1)
+ | (Suc (Suc 0)) \<Rightarrow> (Hex 0 0 1 0)
+ | (Suc (Suc (Suc 0))) \<Rightarrow> (Hex 0 0 1 1)
+ | (Suc (Suc (Suc (Suc 0)))) \<Rightarrow> (Hex 0 1 0 0)
+ | (Suc (Suc (Suc (Suc (Suc 0))))) \<Rightarrow> (Hex 0 1 0 1)
+ | (Suc (Suc (Suc (Suc (Suc (Suc 0)))))) \<Rightarrow> (Hex 0 1 1 0)
+ | (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0))))))) \<Rightarrow> (Hex 0 1 1 1)
+ | (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0)))))))) \<Rightarrow> (Hex 1 0 0 0)
+ | (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0))))))))) \<Rightarrow> (Hex 1 0 0 1)
+ | (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0)))))))))) \<Rightarrow> (Hex 1 0 1 0)
+ | (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0))))))))))) \<Rightarrow> (Hex 1 0 1 1)
+ | (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0)))))))))))) \<Rightarrow> (Hex 1 1 0 0)
+ | (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0))))))))))))) \<Rightarrow> (Hex 1 1 0 1)
+ | (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc (Suc 0)))))))))))))) \<Rightarrow> (Hex 1 1 1 0)
+ |_ \<Rightarrow> (Hex 1 1 1 1))"
 
 (* Some smoke checks to make sure the conversions work as expected. *)
 lemma "nat_to_Hex 0x0 = Hex 0 0 0 0" by simp
@@ -671,12 +720,43 @@ qed
 
 section \<open>Arithmetic Gates for Hex and Words\<close>
 (* Chained FULLADDERs returning the sum and its carry bit. *)
-fun ADDER_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> bit \<Rightarrow> Hex * bit\<close> where
+(* fun ADDER_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> bit \<Rightarrow> Hex * bit\<close> where
 "ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c = (let (s4,c4) = FULLADDER a4 b4 c
 in let (s3,c3) = FULLADDER a3 b3 c4
 in let (s2,c2) = FULLADDER a2 b2 c3
 in let (s1,c1) = FULLADDER a1 b1 c2
+in (Hex s1 s2 s3 s4, c1))" *)
+definition ADDER_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> bit \<Rightarrow> Hex * bit\<close> where
+"ADDER_Hex a b c \<equiv> (case a of (Hex a1 a2 a3 a4) \<Rightarrow> case b of (Hex b1 b2 b3 b4) \<Rightarrow>
+ (Hex (fst (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))) (fst (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))) (fst (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))) (fst (FULLADDER a4 b4 c)), (snd (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c))))))))))"
+
+lemma ADDER_Hex_simps [simp]: "ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c
+= (let (s4,c4) = FULLADDER a4 b4 c
+in let (s3,c3) = FULLADDER a3 b3 c4
+in let (s2,c2) = FULLADDER a2 b2 c3
+in let (s1,c1) = FULLADDER a1 b1 c2
 in (Hex s1 s2 s3 s4, c1))"
+proof-
+  have "ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c
+= (Hex (fst (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))) (fst (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))) (fst (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))) (fst (FULLADDER a4 b4 c)), (snd (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))))"
+    by (simp add: ADDER_Hex_def)
+  then show ?thesis
+    by (simp add: case_prod_beta)
+qed
+
+lemma ADDER_Hex_simps2: "ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c
+= (Hex (fst (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))) (fst (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))) (fst (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))) (fst (FULLADDER a4 b4 c)), (snd (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))))"
+  by (simp add: ADDER_Hex_def)
+
+lemma ADDER_Hex_alias: "(s4,c4) = FULLADDER a4 b4 c \<and> (s3,c3) = FULLADDER a3 b3 c4
+    \<and> (s2,c2) = FULLADDER a2 b2 c3 \<and> (s1,c1) = FULLADDER a1 b1 c2 
+    \<longrightarrow> (Hex s1 s2 s3 s4, c1) = ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c"
+  by (smt (verit, ccfv_threshold) ADDER_Hex_simps prod.simps(2))
+
+lemma "(Hex s1 s2 s3 s4, c1) = ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c
+  \<longrightarrow> (s4,c4) = FULLADDER a4 b4 c \<and> (s3,c3) = FULLADDER a3 b3 c4
+    \<and> (s2,c2) = FULLADDER a2 b2 c3 \<and> (s1,c1) = FULLADDER a1 b1 c2"
+ oops 
 
 lemma ADDER_Hex_0b0: "ADDER_Hex (Hex 0 0 0 0) b 0 = (b, 0)"
 proof (cases b)
@@ -696,7 +776,13 @@ proof (cases a)
   then show ?thesis
   proof (cases b)
     case A2: (Hex b1 b2 b3 b4)
-    then show ?thesis using A1 by auto
+    then have "ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) 0
+= (let (s4,c4) = FULLADDER a4 b4 0
+in let (s3,c3) = FULLADDER a3 b3 c4
+in let (s2,c2) = FULLADDER a2 b2 c3
+in let (s1,c1) = FULLADDER a1 b1 c2
+in (Hex s1 s2 s3 s4, c1))" using A1 by auto
+    then show ?thesis using A1 A2 by auto
   qed
 qed
 
@@ -911,12 +997,217 @@ lemma FULLADDER_assoc_snd: "(sxy,cxy) = FULLADDER x y c1 \<and> (syz,cyz) = FULL
 \<longrightarrow> XOR cxy (snd (FULLADDER sxy z c2)) = XOR cyz (snd (FULLADDER x syz c1))"
   by (smt (z3) FULLADDER_000 FULLADDER_001 FULLADDER_010 FULLADDER_011 FULLADDER_100 FULLADDER_101 FULLADDER_110 FULLADDER_111 Pair_inject XOR_0_1 XOR_1_0 bit_not_one_iff eq_snd_iff)
 
-lemma ADDER_Hex_assoc0: "(sab,cab) = ADDER_Hex a b 0 \<and>
+lemma (* ADDER_Hex_assoc0: *) "(sab,cab) = ADDER_Hex a b 0 \<and>
 (sbc,cbc) = ADDER_Hex b c 0 \<longrightarrow> fst (ADDER_Hex a sbc 0) = fst (ADDER_Hex sab c 0)"
   sorry
 
 lemma (* ADDER16_assoc: *) "ADDER16 a (ADDER16 b c) = ADDER16 (ADDER16 a b) c" 
   sorry
+
+(*
+lemma "fst (ADDER_Hex (fst (ADDER_Hex a b 0)) c 0) = 
+fst (ADDER_Hex a (fst (ADDER_Hex b c 0)) 0)"
+proof (cases a)
+  case A: (Hex a1 a2 a3 a4)
+  then show ?thesis
+  proof (cases b)
+    case B: (Hex b1 b2 b3 b4)
+    then show ?thesis
+    proof (cases c)
+      case C: (Hex c1 c2 c3 c4)
+      have A1: "(ab4,rab4) = FULLADDER a4 b4 0 \<and> (ab3,rab3) = FULLADDER a3 b3 rab4
+    \<and> (ab2,rab2) = FULLADDER a2 b2 rab3 \<and> (ab1,rab1) = FULLADDER a1 b1 rab2 
+    \<longrightarrow> (Hex ab1 ab2 ab3 ab4, rab1) = ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) 0"
+        using ADDER_Hex_alias by blast
+      have A2: "(bc4,rbc4) = FULLADDER b4 c4 0 \<and> (bc3,rbc3) = FULLADDER b3 c3 rbc4
+    \<and> (bc2,rbc2) = FULLADDER b2 c2 rbc3 \<and> (bc1,rbc1) = FULLADDER b1 c1 rbc2 
+    \<longrightarrow> (Hex bc1 bc2 bc3 bc4, rbc1) = ADDER_Hex (Hex b1 b2 b3 b4) (Hex c1 c2 c3 c4) 0"
+        using ADDER_Hex_alias by blast
+      have "((ab4,rab4) = FULLADDER a4 b4 0 \<and> (bc4,rbc4) = FULLADDER b4 c4 0
+    \<and> (l4, lr4) = FULLADDER ab4 c4 0 \<and> (r4, rr4) = FULLADDER a4 bc4 0)
+  \<longrightarrow> l4 = r4"
+        by (smt (verit, best) FULLADDER_0b0 FULLADDER_100 bit_not_one_iff fst_eqD)
+      moreover have "((ab4,rab4) = FULLADDER a4 b4 0 \<and> (ab3,rab3) = FULLADDER a3 b3 rab4
+\<and> (bc4,rbc4) = FULLADDER b4 c4 0 \<and> (bc3,rbc3) = FULLADDER b3 c3 rbc4
+\<and> (l4, lr4) = FULLADDER ab4 c4 0 \<and> (l3, lr3) = FULLADDER ab3 c3 lr4
+\<and> (r4, rr4) = FULLADDER a4 bc4 0 \<and> (r3, rr3) = FULLADDER a3 bc3 rr4)
+\<longrightarrow> l3 = r3"
+        by (smt (z3) FULLADDER_000 FULLADDER_001 FULLADDER_010 FULLADDER_011 FULLADDER_100 FULLADDER_101 FULLADDER_110 FULLADDER_111 Pair_inject XOR_0_1 bit_not_one_iff)
+      moreover have "((ab4,rab4) = FULLADDER a4 b4 0 \<and> (ab3,rab3) = FULLADDER a3 b3 rab4
+    \<and> (ab2,rab2) = FULLADDER a2 b2 rab3 \<and> (ab1,rab1) = FULLADDER a1 b1 rab2 
+\<and> (bc4,rbc4) = FULLADDER b4 c4 0 \<and> (bc3,rbc3) = FULLADDER b3 c3 rbc4
+    \<and> (bc2,rbc2) = FULLADDER b2 c2 rbc3 \<and> (bc1,rbc1) = FULLADDER b1 c1 rbc2 
+\<and> (l4, lr4) = FULLADDER ab4 c4 0 \<and> (l3, lr3) = FULLADDER ab3 c3 lr4
+   \<and> (l2,lr2) = FULLADDER ab2 c2 lr3 \<and> (l1, lr1) = FULLADDER ab1 c1 lr2
+\<and> (r4, rr4) = FULLADDER a4 bc4 0 \<and> (r3, rr3) = FULLADDER a3 bc3 rr4
+   \<and> (r2,rr2) = FULLADDER a2 bc2 rr3 \<and> (r1, rr1) = FULLADDER a1 bc1 rr2)
+\<longrightarrow> l2 = r2"
+        by (smt (verit) FULLADDER_000 FULLADDER_001 FULLADDER_010 FULLADDER_011 FULLADDER_100 FULLADDER_101 FULLADDER_110 FULLADDER_111 FULLADDER_carry_criteria NAND.simps(1) Pair_inject XOR_0_1 bit_not_one_iff bit_not_zero_iff prod.inject)
+      moreover have "((ab4,rab4) = FULLADDER a4 b4 0 \<and> (ab3,rab3) = FULLADDER a3 b3 rab4
+    \<and> (ab2,rab2) = FULLADDER a2 b2 rab3 \<and> (ab1,rab1) = FULLADDER a1 b1 rab2 
+\<and> (bc4,rbc4) = FULLADDER b4 c4 0 \<and> (bc3,rbc3) = FULLADDER b3 c3 rbc4
+    \<and> (bc2,rbc2) = FULLADDER b2 c2 rbc3 \<and> (bc1,rbc1) = FULLADDER b1 c1 rbc2 
+\<and> (l4, lr4) = FULLADDER ab4 c4 0 \<and> (l3, lr3) = FULLADDER ab3 c3 lr4
+   \<and> (l2,lr2) = FULLADDER ab2 c2 lr3 \<and> (l1, lr1) = FULLADDER ab1 c1 lr2
+\<and> (r4, rr4) = FULLADDER a4 bc4 0 \<and> (r3, rr3) = FULLADDER a3 bc3 rr4
+   \<and> (r2,rr2) = FULLADDER a2 bc2 rr3 \<and> (r1, rr1) = FULLADDER a1 bc1 rr2)
+\<longrightarrow> l1 = r1"
+        by (smt (verit) FULLADDER_000 FULLADDER_001 FULLADDER_010 FULLADDER_011 FULLADDER_100 FULLADDER_101 FULLADDER_110 FULLADDER_111 FULLADDER_carry_criteria NAND.simps(1) Pair_inject XOR_0_1 bit_not_one_iff bit_not_zero_iff prod.inject)
+      ultimately have A4: "((ab4,rab4) = FULLADDER a4 b4 0 \<and> (ab3,rab3) = FULLADDER a3 b3 rab4
+    \<and> (ab2,rab2) = FULLADDER a2 b2 rab3 \<and> (ab1,rab1) = FULLADDER a1 b1 rab2 
+\<and> (bc4,rbc4) = FULLADDER b4 c4 0 \<and> (bc3,rbc3) = FULLADDER b3 c3 rbc4
+    \<and> (bc2,rbc2) = FULLADDER b2 c2 rbc3 \<and> (bc1,rbc1) = FULLADDER b1 c1 rbc2 
+\<and> (l4, lr4) = FULLADDER ab4 c4 0 \<and> (l3, lr3) = FULLADDER ab3 c3 lr4
+   \<and> (l2,lr2) = FULLADDER ab2 c2 lr3 \<and> (l1, lr1) = FULLADDER ab1 c1 lr2
+\<and> (r4, rr4) = FULLADDER a4 bc4 0 \<and> (r3, rr3) = FULLADDER a3 bc3 rr4
+   \<and> (r2,rr2) = FULLADDER a2 bc2 rr3 \<and> (r1, rr1) = FULLADDER a1 bc1 rr2)
+\<longrightarrow> l1 = r1 \<and> l2 = r2 \<and> l3 = r3 \<and> l4 = r4"
+        by presburger
+      then have A5: "((ab4,rab4) = FULLADDER a4 b4 0 \<and> (ab3,rab3) = FULLADDER a3 b3 rab4
+    \<and> (ab2,rab2) = FULLADDER a2 b2 rab3 \<and> (ab1,rab1) = FULLADDER a1 b1 rab2 
+\<and> (bc4,rbc4) = FULLADDER b4 c4 0 \<and> (bc3,rbc3) = FULLADDER b3 c3 rbc4
+    \<and> (bc2,rbc2) = FULLADDER b2 c2 rbc3 \<and> (bc1,rbc1) = FULLADDER b1 c1 rbc2 
+\<and> (l4, lr4) = FULLADDER ab4 c4 0 \<and> (l3, lr3) = FULLADDER ab3 c3 lr4
+   \<and> (l2,lr2) = FULLADDER ab2 c2 lr3 \<and> (l1, lr1) = FULLADDER ab1 c1 lr2
+\<and> (r4, rr4) = FULLADDER a4 bc4 0 \<and> (r3, rr3) = FULLADDER a3 bc3 rr4
+   \<and> (r2,rr2) = FULLADDER a2 bc2 rr3 \<and> (r1, rr1) = FULLADDER a1 bc1 rr2)
+\<longrightarrow> (Hex l1 l2 l3 l4) = (Hex r1 r2 r3 r4)" by auto
+      then have "(((Hex ab1 ab2 ab3 ab4), rab1) = ADDER_Hex a b (0 :: bit)
+\<and> (bc4,rbc4) = FULLADDER b4 c4 0 \<and> (bc3,rbc3) = FULLADDER b3 c3 rbc4
+    \<and> (bc2,rbc2) = FULLADDER b2 c2 rbc3 \<and> (bc1,rbc1) = FULLADDER b1 c1 rbc2 
+\<and> (l4, lr4) = FULLADDER ab4 c4 0 \<and> (l3, lr3) = FULLADDER ab3 c3 lr4
+   \<and> (l2,lr2) = FULLADDER ab2 c2 lr3 \<and> (l1, lr1) = FULLADDER ab1 c1 lr2
+\<and> (r4, rr4) = FULLADDER a4 bc4 0 \<and> (r3, rr3) = FULLADDER a3 bc3 rr4
+   \<and> (r2,rr2) = FULLADDER a2 bc2 rr3 \<and> (r1, rr1) = FULLADDER a1 bc1 rr2)
+\<longrightarrow> (Hex l1 l2 l3 l4) = (Hex r1 r2 r3 r4)" 
+        using ADDER_Hex_alias A B by force
+      have "(ab4,rab4) = FULLADDER a4 b4 0 \<and> (ab3,rab3) = FULLADDER a3 b3 rab4
+    \<and> (ab2,rab2) = FULLADDER a2 b2 rab3 \<and> (ab1,rab1) = FULLADDER a1 b1 rab2 \<longrightarrow>
+        ((Hex ab1 ab2 ab3 ab4), rab1) = ADDER_Hex a b (0 :: bit)" using ADDER_Hex_alias A B by simp
+      moreover have "(bc4,rbc4) = FULLADDER b4 c4 0 \<and> (bc3,rbc3) = FULLADDER b3 c3 rbc4
+    \<and> (bc2,rbc2) = FULLADDER b2 c2 rbc3 \<and> (bc1,rbc1) = FULLADDER b1 c1 rbc2 
+\<longrightarrow> ((Hex bc1 bc2 bc3 bc4, rbc1) = ADDER_Hex b c 0)" using ADDER_Hex_alias B C by simp
+      ultimately have "(((Hex ab1 ab2 ab3 ab4), rab1) = ADDER_Hex a b (0 :: bit)
+\<and> (Hex bc1 bc2 bc3 bc4, rbc1) = ADDER_Hex b c 0
+\<and> (l4, lr4) = FULLADDER ab4 c4 0 \<and> (l3, lr3) = FULLADDER ab3 c3 lr4
+   \<and> (l2,lr2) = FULLADDER ab2 c2 lr3 \<and> (l1, lr1) = FULLADDER ab1 c1 lr2
+\<and> (r4, rr4) = FULLADDER a4 bc4 0 \<and> (r3, rr3) = FULLADDER a3 bc3 rr4
+   \<and> (r2,rr2) = FULLADDER a2 bc2 rr3 \<and> (r1, rr1) = FULLADDER a1 bc1 rr2)
+\<longrightarrow> (Hex l1 l2 l3 l4) = (Hex r1 r2 r3 r4)" using ADDER_Hex_alias A B C A4 A5 by auto
+      ultimately have "(((Hex ab1 ab2 ab3 ab4), rab1) = ADDER_Hex a b (0 :: bit)
+\<and> (bc4,rbc4) = FULLADDER b4 c4 0 \<and> (bc3,rbc3) = FULLADDER b3 c3 rbc4
+    \<and> (bc2,rbc2) = FULLADDER b2 c2 rbc3 \<and> (bc1,rbc1) = FULLADDER b1 c1 rbc2 
+\<and> (l4, lr4) = FULLADDER ab4 c4 0 \<and> (l3, lr3) = FULLADDER ab3 c3 lr4
+   \<and> (l2,lr2) = FULLADDER ab2 c2 lr3 \<and> (l1, lr1) = FULLADDER ab1 c1 lr2
+\<and> (r4, rr4) = FULLADDER a4 bc4 0 \<and> (r3, rr3) = FULLADDER a3 bc3 rr4
+   \<and> (r2,rr2) = FULLADDER a2 bc2 rr3 \<and> (r1, rr1) = FULLADDER a1 bc1 rr2)
+\<longrightarrow> (Hex l1 l2 l3 l4) = (Hex r1 r2 r3 r4)" sledgehammer (add: ADDER_Hex_alias A B C A1 A4 A5)
+     (* sledgehammer (add: ADDER_Hex_alias A B C A1 A4 A5) *)
+      have "(((Hex ab1 ab2 ab3 ab4), rab1) = ADDER_Hex a b (0 :: bit))
+            \<and> (((Hex bc1 bc2 bc3 bc4), rbc1) = ADDER_Hex b c (0 :: bit))
+            \<and> (((Hex l1 l2 l3 l4), lr1) = ADDER_Hex (Hex ab1 ab2 ab3 ab4) c (0 :: bit))
+            \<and> (((Hex r1 r2 r3 r4), rr1) = ADDER_Hex a (Hex bc1 bc2 bc3 bc4) (0 :: bit))
+            \<longrightarrow> (Hex l1 l2 l3 l4) = (Hex r1 r2 r3 r4)" 
+      then show ?thesis
+        by (meson ADDER_Hex_alias A1)
+    qed
+  qed
+qed
+*)
+
+lemma "Hex_to_nat h < 16"
+  by (simp add: Hex_unsigned_max)
+
+lemma "(a :: nat) < 16 \<longrightarrow> a div 16 = 0"
+  by simp
+
+theorem Word_to_nat_to_Word: "nat_to_Word (Word_to_nat a) = a"
+proof (cases a)
+  case A: (Word a1 a2 a3 a4)
+  have A1: "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 4096) mod 16 = (Hex_to_nat a1)"
+  proof-
+    have "(Hex_to_nat a4) < 16 \<and> (Hex_to_nat a3) < 16 \<and> Hex_to_nat a2 < 16" 
+      using Hex_unsigned_max by auto
+    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) \<le> 15 + 16*15 + 256*15"
+      by linarith
+    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) < 4096" by simp
+    then show ?thesis
+      by simp
+  qed
+  then have N1: "nat_to_Hex((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 4096) mod 16) = a1" using Hex_to_nat_to_Hex by auto
+  have "((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256 = (Hex_to_nat a2) + 16*(Hex_to_nat a1)"
+  proof-
+    have "(Hex_to_nat a4) < 16 \<and> (Hex_to_nat a3) < 16" using Hex_unsigned_max by auto
+    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) \<le> 15 + 16*15" by linarith
+    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) \<le> 255" by auto
+    moreover have "((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) =
+     (((Hex_to_nat a4) + 16*(Hex_to_nat a3)) + 256*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))"
+    by simp
+    ultimately show ?thesis
+      using Euclidean_Rings.div_eq_0_iff div_mult_self2 eval_nat_numeral(2) less_Suc_eq_le by linarith
+  qed
+  then have A2: "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256) mod 16 = (Hex_to_nat a2)"
+    using Hex_to_nat_mod16 by presburger
+  then have N2: "nat_to_Hex((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256) mod 16) = a2" using Hex_to_nat_to_Hex by auto
+
+  have A3: "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16 = Hex_to_nat a3"
+  proof-
+    have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)
+        = (Hex_to_nat a4) + 16*(Hex_to_nat a3) + (16*16)*(Hex_to_nat a2) + (16*256)*(Hex_to_nat a1)" by auto
+    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)
+        = (Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*(Hex_to_nat a2) + 256*(Hex_to_nat a1))" by auto
+    then have "((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) = (((Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))))"
+      by auto
+    moreover have "((Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))) div 16 = ((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))"
+      by (metis Hex_to_nat_mod16 div_mult_self2 mod_eq_self_iff_div_eq_0 nat_arith.rule0 zero_neq_numeral)
+    moreover have "((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1))) mod 16 = (Hex_to_nat a3)"
+      using Hex_to_nat_mod16 by presburger
+    ultimately show ?thesis 
+      by presburger
+  qed
+  then have "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16 = Hex_to_nat a3"
+    by auto
+  then have N3: "nat_to_Hex((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16) = a3"
+    using Hex_to_nat_to_Hex by presburger
+  have "((Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*(Hex_to_nat a2) + 256*(Hex_to_nat a1))) mod 16 = Hex_to_nat a4"
+    using Hex_to_nat_mod16 by presburger
+  have A4: "(Hex_to_nat a4 + 16 * Hex_to_nat a3 + 256 * Hex_to_nat a2 + 4096 * Hex_to_nat a1) mod 16 = Hex_to_nat a4"
+    by (smt (verit, del_insts) \<open>(Hex_to_nat a4 + 16 * (Hex_to_nat a3 + 16 * Hex_to_nat a2 + 256 * Hex_to_nat a1)) mod 16 = Hex_to_nat a4\<close> ab_semigroup_add_class.add_ac(1) distrib_left_numeral mult_numeral_left_semiring_numeral semiring_norm(12) semiring_norm(13))
+  then have N4: "nat_to_Hex (((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) mod 16) = a4"
+    using Hex_to_nat_to_Hex by presburger
+  have "nat_to_Word ((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) = Word (nat_to_Hex ((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 4096) mod 16)) (nat_to_Hex ((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256) mod 16))
+  (nat_to_Hex ((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16)) (nat_to_Hex (((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) mod 16))" using A N1 N2 N3 N4 Hex_to_nat_to_Hex by auto
+  then have "nat_to_Word ((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) = Word a1 a2 a3 a4" using A N1 N2 N3 N4 Hex_to_nat_to_Hex by auto
+  then have "nat_to_Word ((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) = a" using A by auto
+  then show ?thesis
+    using A Word_to_nat.simps by presburger
+qed
+
+lemma ADDER16_assoc: "ADDER16 a (ADDER16 b c) = ADDER16 (ADDER16 a b) c"
+proof-
+  have A1: "Word_to_nat (ADDER16 a b) = ((Word_to_nat a) + (Word_to_nat b)) mod 65536" using ADDER16_check by simp
+  moreover have A2: "Word_to_nat (ADDER16 b c) = ((Word_to_nat b) + (Word_to_nat c)) mod 65536" using ADDER16_check by simp
+  moreover have A3: "Word_to_nat (ADDER16 a (nat_to_Word (Word_to_nat (ADDER16 b c)))) = ((Word_to_nat a) + (((Word_to_nat b) + (Word_to_nat c)) mod 65536)) mod 65536"
+    by (metis ADDER16_check Word_to_nat_to_Word)
+  moreover have "Word_to_nat (ADDER16 (nat_to_Word (Word_to_nat (ADDER16 a b))) c) 
+    = ((((Word_to_nat a) + (Word_to_nat b)) mod 65536) + (Word_to_nat a)) mod 65536"
+  proof-
+    let ?ab = "(nat_to_Word (Word_to_nat (ADDER16 a b))) :: Word"
+    have B1: "(Word_to_nat (ADDER16 a b)) = ((Word_to_nat a) + (Word_to_nat b)) mod 65536"
+      using A1 ADDER16_check by auto
+    then have "Word_to_nat (ADDER16 ?ab c) = ((Word_to_nat ?ab) + (Word_to_nat a)) mod 65536"
+      using A1 [[linarith_split_limit = 100]] ADDER16_check by auto
+    have "Word_to_nat (ADDER16 (?ab) c) = ((Word_to_nat (?ab)) + (Word_to_nat a)) mod 65536" 
+      using ADDER16_check by auto
+    have "Word_to_nat (ADDER16 (nat_to_Word (Word_to_nat (ADDER16 a b))) c) 
+    = ((Word_to_nat (nat_to_Word (Word_to_nat (ADDER16 a b)))) + (Word_to_nat a)) mod 65536"
+      using ADDER16_check by force
+    then show ?thesis
+      by (metis ADDER16_check Word_to_nat_to_Word)
+  qed
+  ultimately show ?thesis
+    by (metis (no_types, lifting) ADDER16_check Word_to_nat_to_Word ab_semigroup_add_class.add_ac(1) mod_add_left_eq mod_add_right_eq)
+qed
 
 fun ADDER4 :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
 "ADDER4 a b = fst (ADDER_Hex a b 0)"
@@ -932,13 +1223,74 @@ proof-
   then show ?thesis by simp
 qed
 
+lemma ADDER4_comm: "ADDER4 a b = ADDER4 b a" by (simp add: ADDER_Hex_comm)
+
+lemma ADDER4_11: "ADDER4 1 1 = X2" by (simp add: one_Hex_def)
+lemma ADDER4_21: "ADDER4 X2 1 = X3" by (simp add: one_Hex_def)
+lemma ADDER4_31: "ADDER4 X3 1 = X4" by (simp add: one_Hex_def)
+lemma ADDER4_41: "ADDER4 X4 1 = X5" by (simp add: one_Hex_def)
+lemma ADDER4_51: "ADDER4 X5 1 = X6" by (simp add: one_Hex_def)
+lemma ADDER4_61: "ADDER4 X6 1 = X7" by (simp add: one_Hex_def)
+lemma ADDER4_71: "ADDER4 X7 1 = X8" by (simp add: one_Hex_def)
+lemma ADDER4_81: "ADDER4 X8 1 = X9" by (simp add: one_Hex_def)
+lemma ADDER4_91: "ADDER4 X9 1 = XA" by (simp add: one_Hex_def)
+lemma ADDER4_A1: "ADDER4 XA 1 = XB" by (simp add: one_Hex_def)
+lemma ADDER4_B1: "ADDER4 XB 1 = XC" by (simp add: one_Hex_def)
+lemma ADDER4_C1: "ADDER4 XC 1 = XD" by (simp add: one_Hex_def)
+lemma ADDER4_D1: "ADDER4 XD 1 = XE" by (simp add: one_Hex_def)
+lemma ADDER4_E1: "ADDER4 XE 1 = XF" by (simp add: one_Hex_def)
+lemma ADDER4_F1: "ADDER4 XF 1 = 0" by (simp add: zero_Hex_def one_Hex_def)
+lemma ADDER4_22: "ADDER4 X2 X2 = X4" by simp
+lemma ADDER4_32: "ADDER4 X3 X2 = X5" by simp
+lemma ADDER4_42: "ADDER4 X4 X2 = X6" by simp
+lemma ADDER4_52: "ADDER4 X5 X2 = X7" by simp
+lemma ADDER4_62: "ADDER4 X6 X2 = X8" by simp
+lemma ADDER4_72: "ADDER4 X7 X2 = X9" by simp
+lemma ADDER4_82: "ADDER4 X8 X2 = XA" by simp
+lemma ADDER4_92: "ADDER4 X9 X2 = XB" by simp
+lemma ADDER4_A2: "ADDER4 XA X2 = XC" by simp
+lemma ADDER4_B2: "ADDER4 XB X2 = XD" by simp
+lemma ADDER4_C2: "ADDER4 XC X2 = XE" by simp
+lemma ADDER4_D2: "ADDER4 XD X2 = XF" by simp
+lemma ADDER4_E2: "ADDER4 XE X2 = 0" by (simp add: zero_Hex_def)
+lemma ADDER4_F2: "ADDER4 XF X2 = 1" by (simp add: one_Hex_def)
+lemma ADDER4_33: "ADDER4 X3 X3 = X6" by simp
+lemma ADDER4_43: "ADDER4 X4 X3 = X7" by simp
+lemma ADDER4_53: "ADDER4 X5 X3 = X8" by simp
+lemma ADDER4_63: "ADDER4 X6 X3 = X9" by simp
+lemma ADDER4_73: "ADDER4 X7 X3 = XA" by simp
+lemma ADDER4_83: "ADDER4 X8 X3 = XB" by simp
+lemma ADDER4_93: "ADDER4 X9 X3 = XC" by simp
+lemma ADDER4_A3: "ADDER4 XA X3 = XD" by simp
+lemma ADDER4_B3: "ADDER4 XB X3 = XE" by simp
+lemma ADDER4_C3: "ADDER4 XC X3 = XF" by simp
+lemma ADDER4_D3: "ADDER4 XD X3 = 0" by (simp add: zero_Hex_def one_Hex_def)
+lemma ADDER4_E3: "ADDER4 XE X3 = 1" by (simp add: one_Hex_def)
+lemma ADDER4_F3: "ADDER4 XF X3 = X2" by simp
+lemma ADDER4_34: "ADDER4 X3 X4 = X7" by simp
+lemma ADDER4_45: "ADDER4 X4 X5 = X9" by simp
+lemma ADDER4_56: "ADDER4 X5 X6 = XB" by simp
+lemma ADDER4_67: "ADDER4 X6 X7 = XD" by simp
+lemma ADDER4_78: "ADDER4 X7 X8 = XF" by simp
+lemma ADDER4_89: "ADDER4 X8 X9 = 1" by (simp add: one_Hex_def)
+lemma ADDER4_9A: "ADDER4 X9 XA = X3" by simp
+lemma ADDER4_AB: "ADDER4 XA XB = X5" by simp
+lemma ADDER4_BC: "ADDER4 XB XC = X7" by simp
+lemma ADDER4_CD: "ADDER4 XC XD = X9" by simp
+lemma ADDER4_DE: "ADDER4 XD XE = XB" by simp
+lemma ADDER4_EF: "ADDER4 XE XF = XD" by simp
+lemma ADDER4_12: "ADDER4 1 X2 = X3" by (simp add: one_Hex_def)
+lemma ADDER4_23: "ADDER4 X2 X3 = X5" by simp
+
+lemma ADDER4_assoc1: "ADDER4 a (ADDER4 b 1) = ADDER4 (ADDER4 a b) 1"
+  
+
+lemma ADDER4_assoc: "ADDER4 a (ADDER4 b c) = ADDER4 (ADDER4 a b) c" 
+  sorry
+
+
 fun INC16 :: \<open>Word \<Rightarrow> Word\<close> where
 "INC16 a = ADDER16 a (Word 0 0 0 1)"
-
-lemma ADDER_Hex_alias: "(s4,c4) = FULLADDER a4 b4 c \<and> (s3,c3) = FULLADDER a3 b3 c4
-    \<and> (s2,c2) = FULLADDER a2 b2 c3 \<and> (s1,c1) = FULLADDER a1 b1 c2 
-    \<longrightarrow> (Hex s1 s2 s3 s4, c1) = ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c"
-  by (metis (no_types, lifting) ADDER_Hex.simps split_conv)
 
 lemma INC4_f: "INC4 (Hex 1 1 1 1) = 0"
 proof-
@@ -998,9 +1350,9 @@ qed
 lemma "INC16 (ADDER16 x (NOT16 x)) = Word 0 0 0 0"
   using ADDER16_x_not_x INC16_ffff by auto
 
-(* lemma "(ADDER16 x (INC16 (NOT16 x))) = Word 0 0 0 0" *)
+(* lemma "(ADDER16 x (INC16 (NOT16 x))) = Word 0 0 0 0" sledgehammer [isar_proofs]  *)
 lemma (* ADDER_Hex_negate: *)
-  "s = (ADDER4 (NOT_Hex a) X1) \<longrightarrow> X0 = (ADDER4 s a)" sledgehammer [isar_proofs] sorry
+  "s = (ADDER4 (NOT_Hex a) X1) \<longrightarrow> X0 = (ADDER4 s a)" sorry
 
 lemma (* INC_swaps_ADD16: *) "y = (Word XF XF XF XF) \<longrightarrow> ADDER16 x (INC16 y) = INC16 (ADDER16 x y)"
 proof-
@@ -1102,7 +1454,7 @@ lemma ALU_op_11001: "ALU_op x y 1 1 0 0 1 = DEC16 y"
 proof-
   have "ALU_op x y 1 1 0 0 1 = ADDER16 (NOT16 (Word 0 0 0 0)) y" by auto
   then show ?thesis
-    by (metis (no_types, lifting) ADDER16.simps ADDER16_a0 ADDER_Hex.simps DEC_as_minus_one_plus_y FULLADDER_010 FULLADDER_100 INC16.simps NEGATE16.simps NOT16.simps NOT_0 NOT_1 NOT_Hex.simps one_Hex_def zero_Hex_def)
+    by (metis (no_types, lifting) ADDER16.simps ADDER16_a0 ADDER_Hex_simps DEC_as_minus_one_plus_y FULLADDER_010 FULLADDER_100 INC16.simps NEGATE16.simps NOT16.simps NOT_0 NOT_1 NOT_Hex.simps one_Hex_def zero_Hex_def)
 qed
 
 fun ALU :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> bit \<Rightarrow> Word * bit * bit\<close> where
