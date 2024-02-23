@@ -6,7 +6,7 @@ The natural way to model circuitry in HOL is Anthony Fox's trick to use
 the "Devices as Logical Relations" idiom, `Gate[in, out]`. 
 
 We use the "intuitive" alternative using functions as relations. NAND is
-a function, `NAND`. But then how do we deal with combinational logic
+a function, `NAND`. But then how do we deal with sequential logic
 like latches, registers, and RAM?
 
 One possibility is to use monads, but if we use monads for a 1-bit cell,
