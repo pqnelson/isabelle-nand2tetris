@@ -31,10 +31,10 @@ theorem NAND_comm: "NAND a b = NAND b a"
 definition NOT :: \<open>bit \<Rightarrow> bit\<close>
   where [simp]: \<open>NOT a \<equiv> (NAND a a)\<close>
 
-lemma NOT_0 [simp]: "NOT (0::bit) \<equiv> (1::bit)"
+lemma NOT_0 [simp]: "NOT (0::bit) = (1::bit)"
   by simp
 
-lemma NOT_1 [simp]: "NOT (1::bit) \<equiv> (0::bit)"
+lemma NOT_1 [simp]: "NOT (1::bit) = (0::bit)"
   by simp
 
 theorem NOT_NOT: "NOT (NOT a) = a"
@@ -429,16 +429,85 @@ fun nat_to_Word :: "nat \<Rightarrow> Word" where
 "nat_to_Word n = Word (nat_to_Hex ((n div 4096) mod 16)) (nat_to_Hex ((n div 256) mod 16))
   (nat_to_Hex ((n div 16) mod 16)) (nat_to_Hex (n mod 16))"
 
-lemma mod_of_prod: "(a * b) mod a = 0" for a b :: nat
-  using Euclidean_Rings.euclidean_semiring_cancel_class.mod_mult_self1_is_0 by simp
+theorem Word_to_nat_to_Word: "nat_to_Word (Word_to_nat a) = a"
+proof (cases a)
+  case A: (Word a1 a2 a3 a4)
+  have A1: "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 4096) mod 16 = (Hex_to_nat a1)"
+  proof-
+    have "(Hex_to_nat a4) < 16 \<and> (Hex_to_nat a3) < 16 \<and> Hex_to_nat a2 < 16" 
+      using Hex_unsigned_max by auto
+    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) \<le> 15 + 16*15 + 256*15"
+      by linarith
+    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) < 4096" by simp
+    then show ?thesis
+      by simp
+  qed
+  then have N1: "nat_to_Hex((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 4096) mod 16) = a1" using Hex_to_nat_to_Hex by auto
+  have "((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256 = (Hex_to_nat a2) + 16*(Hex_to_nat a1)"
+  proof-
+    have "(Hex_to_nat a4) < 16 \<and> (Hex_to_nat a3) < 16" using Hex_unsigned_max by auto
+    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) \<le> 15 + 16*15" by linarith
+    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) \<le> 255" by auto
+    moreover have "((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) =
+     (((Hex_to_nat a4) + 16*(Hex_to_nat a3)) + 256*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))"
+    by simp
+    ultimately show ?thesis
+      using Euclidean_Rings.div_eq_0_iff div_mult_self2 eval_nat_numeral(2) less_Suc_eq_le by linarith
+  qed
+  then have A2: "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256) mod 16 = (Hex_to_nat a2)"
+    using Hex_to_nat_mod16 by presburger
+  then have N2: "nat_to_Hex((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256) mod 16) = a2" using Hex_to_nat_to_Hex by auto
+
+  have A3: "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16 = Hex_to_nat a3"
+  proof-
+    have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)
+        = (Hex_to_nat a4) + 16*(Hex_to_nat a3) + (16*16)*(Hex_to_nat a2) + (16*256)*(Hex_to_nat a1)" by auto
+    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)
+        = (Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*(Hex_to_nat a2) + 256*(Hex_to_nat a1))" by auto
+    then have "((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) = (((Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))))"
+      by auto
+    moreover have "((Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))) div 16 = ((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))"
+      by (metis Hex_to_nat_mod16 div_mult_self2 mod_eq_self_iff_div_eq_0 nat_arith.rule0 zero_neq_numeral)
+    moreover have "((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1))) mod 16 = (Hex_to_nat a3)"
+      using Hex_to_nat_mod16 by presburger
+    ultimately show ?thesis 
+      by presburger
+  qed
+  then have "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16 = Hex_to_nat a3"
+    by auto
+  then have N3: "nat_to_Hex((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16) = a3"
+    using Hex_to_nat_to_Hex by presburger
+  have "((Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*(Hex_to_nat a2) + 256*(Hex_to_nat a1))) mod 16 = Hex_to_nat a4"
+    using Hex_to_nat_mod16 by presburger
+  then have A4: "(Hex_to_nat a4 + 16 * Hex_to_nat a3 + 256 * Hex_to_nat a2 + 4096 * Hex_to_nat a1) mod 16 = Hex_to_nat a4"
+    by (smt (verit, del_insts) \<open>(Hex_to_nat a4 + 16 * (Hex_to_nat a3 + 16 * Hex_to_nat a2 + 256 * Hex_to_nat a1)) mod 16 = Hex_to_nat a4\<close> ab_semigroup_add_class.add_ac(1) distrib_left_numeral mult_numeral_left_semiring_numeral semiring_norm(12) semiring_norm(13))
+  then have N4: "a4 = nat_to_Hex (((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2)
+     + 4096*(Hex_to_nat a1)) mod 16)"
+    using Hex_to_nat_to_Hex by presburger
+  have "nat_to_Word ((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) 
+    = Word (nat_to_Hex ((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 4096) mod 16))
+           (nat_to_Hex ((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256) mod 16))
+           (nat_to_Hex ((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16))
+           (nat_to_Hex (((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) mod 16))"
+    using A N1 N2 N3 N4 Hex_to_nat_to_Hex by auto
+  then have "Word a1 a2 a3 a4 = 
+    nat_to_Word ((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1))"
+    using A N1 N2 N3 N4 Hex_to_nat_to_Hex by auto
+  then have "a = nat_to_Word ((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2)
+                 + 4096*(Hex_to_nat a1))"
+    using A by auto
+  then show ?thesis
+    using A Word_to_nat.simps by presburger
+qed
 
 lemma Word_unsigned_max: "Word_to_nat w < 65536"
 proof (cases w)
   case A1: (Word w1 w2 w3 w4)
-  have A2: "Hex_to_nat w1 \<le> 15 \<and> Hex_to_nat w2 \<le> 15 \<and> Hex_to_nat w3 \<le> 15 \<and> Hex_to_nat w4 \<le> 15"
-    using A1 Hex_unsigned_max
+  then have A2: "Hex_to_nat w1 \<le> 15 \<and> Hex_to_nat w2 \<le> 15 \<and> Hex_to_nat w3 \<le> 15 \<and> Hex_to_nat w4 \<le> 15"
+    using Hex_unsigned_max
     by (metis eval_nat_numeral(2) less_Suc_eq_le semiring_norm(26) semiring_norm(27))
-  moreover have "Word_to_nat w = (Hex_to_nat w4) + 16*(Hex_to_nat w3) + 256*(Hex_to_nat w2) + 4096*(Hex_to_nat w1)"
+  moreover have "Word_to_nat w = (Hex_to_nat w4) + 16*(Hex_to_nat w3) + 256*(Hex_to_nat w2)
+                                 + 4096*(Hex_to_nat w1)"
     by (simp add: A1)
   ultimately have A3: "Word_to_nat w < 16 + 16*15 + 256*15 + 4096*15"
     by auto
@@ -472,14 +541,7 @@ fun OR_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
   "OR_Hex (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = Hex (OR a1 a2) (OR b1 b2) (OR c1 c2) (OR d1 d2)"
 
 lemma NOT_AND_NOT_Hex: "NOT_Hex (AND_Hex (NOT_Hex a) (NOT_Hex b)) = OR_Hex a b"
-proof (cases a)
-  case A: (Hex a1 a2 a3 a4)
-  then show ?thesis
-  proof (cases b)
-    case (Hex b1 b2 b3 b4)
-    then show ?thesis using NOT_AND_NOT NOT_AND_is_NAND A by fastforce
-  qed
-qed
+  using NOT_AND_NOT NOT_AND_is_NAND by (case_tac a; case_tac b) fastforce
 
 fun XOR_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> Hex\<close> where
   "XOR_Hex (Hex a1 b1 c1 d1) (Hex a2 b2 c2 d2) = Hex (XOR a1 a2) (XOR b1 b2) (XOR c1 c2) (XOR d1 d2)"
@@ -539,7 +601,8 @@ lemma NOT16_NOT16: "NOT16 (NOT16 w) = w"
   using NOT_NOT_Hex by (case_tac w) auto
 
 fun AND16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
-  "AND16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4) = Word (AND_Hex a1 b1) (AND_Hex a2 b2) (AND_Hex a3 b3) (AND_Hex a4 b4)"
+  "AND16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4)
+   = Word (AND_Hex a1 b1) (AND_Hex a2 b2) (AND_Hex a3 b3) (AND_Hex a4 b4)"
 
 lemma AND16_x_FFFF: "AND16 x (Word XF XF XF XF) = x"
   using AND_Hex_x_F by (case_tac x) auto
@@ -548,13 +611,15 @@ lemma AND16_FFFF_x: "AND16 (Word XF XF XF XF) x = x"
   using AND_Hex_F_x by (case_tac x) auto
 
 fun OR16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> Word\<close> where
-  "OR16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4) = Word (OR_Hex a1 b1) (OR_Hex a2 b2) (OR_Hex a3 b3) (OR_Hex a4 b4)"
+  "OR16 (Word a1 a2 a3 a4) (Word b1 b2 b3 b4)
+   = Word (OR_Hex a1 b1) (OR_Hex a2 b2) (OR_Hex a3 b3) (OR_Hex a4 b4)"
 
 lemma NOT16_AND16_NOT16: "NOT16 (AND16 (NOT16 a) (NOT16 b)) = OR16 a b"
   by (case_tac a; case_tac b) (simp add: NOT_AND_NOT_Hex)
 
 fun MUX16 :: \<open>Word \<Rightarrow> Word \<Rightarrow> bit \<Rightarrow> Word\<close> where
-  "MUX16 (Word a1 b1 c1 d1) (Word a2 b2 c2 d2) s = Word (MUX_Hex a1 a2 s) (MUX_Hex b1 b2 s) (MUX_Hex c1 c2 s) (MUX_Hex d1 d2 s)"
+  "MUX16 (Word a1 b1 c1 d1) (Word a2 b2 c2 d2) s
+   = Word (MUX_Hex a1 a2 s) (MUX_Hex b1 b2 s) (MUX_Hex c1 c2 s) (MUX_Hex d1 d2 s)"
 
 lemma MUX16_left [simp]: "MUX16 a b 0 = a"
   using MUX_Hex_left by (case_tac a; case_tac b) simp
@@ -565,9 +630,14 @@ lemma MUX16_right [simp]: "MUX16 a b 1 = b"
 section \<open>Arithmetic Gates for Hex and Words\<close>
 
 (* Chained FULLADDERs returning the sum and its carry bit. *)
+
 definition ADDER_Hex :: \<open>Hex \<Rightarrow> Hex \<Rightarrow> bit \<Rightarrow> Hex * bit\<close> where
 "ADDER_Hex a b c \<equiv> (case a of (Hex a1 a2 a3 a4) \<Rightarrow> case b of (Hex b1 b2 b3 b4) \<Rightarrow>
- (Hex (fst (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))) (fst (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))) (fst (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))) (fst (FULLADDER a4 b4 c)), (snd (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c))))))))))"
+(let (s4,c4) = FULLADDER a4 b4 c
+in let (s3,c3) = FULLADDER a3 b3 c4
+in let (s2,c2) = FULLADDER a2 b2 c3
+in let (s1,c1) = FULLADDER a1 b1 c2
+in (Hex s1 s2 s3 s4, c1)))"
 
 lemma ADDER_Hex_simps [simp]: "ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c
 = (let (s4,c4) = FULLADDER a4 b4 c
@@ -575,17 +645,15 @@ in let (s3,c3) = FULLADDER a3 b3 c4
 in let (s2,c2) = FULLADDER a2 b2 c3
 in let (s1,c1) = FULLADDER a1 b1 c2
 in (Hex s1 s2 s3 s4, c1))"
-proof-
-  have "ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c
-= (Hex (fst (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))) (fst (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))) (fst (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))) (fst (FULLADDER a4 b4 c)), (snd (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))))"
-    by (simp add: ADDER_Hex_def)
-  then show ?thesis
-    by (simp add: case_prod_beta)
-qed
+  by (simp add: ADDER_Hex_def)
 
 lemma ADDER_Hex_simps2: "ADDER_Hex (Hex a1 a2 a3 a4) (Hex b1 b2 b3 b4) c
-= (Hex (fst (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))) (fst (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))) (fst (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))) (fst (FULLADDER a4 b4 c)), (snd (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))))"
-  by (simp add: ADDER_Hex_def)
+= (Hex (fst (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c))))))))
+       (fst (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c))))))
+       (fst (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c))))
+       (fst (FULLADDER a4 b4 c)),
+  (snd (FULLADDER a1 b1 (snd (FULLADDER a2 b2 (snd (FULLADDER a3 b3 (snd (FULLADDER a4 b4 c)))))))))"
+  by (simp add: case_prod_beta)
 
 lemma ADDER_Hex_alias: "(s4,c4) = FULLADDER a4 b4 c \<and> (s3,c3) = FULLADDER a3 b3 c4
     \<and> (s2,c2) = FULLADDER a2 b2 c3 \<and> (s1,c1) = FULLADDER a1 b1 c2 
@@ -602,19 +670,38 @@ lemma ADDER_Hex_a00: "ADDER_Hex a (Hex 0 0 0 0) 0 = (a, 0)"
    and about as interesting as Homer's catalogue of ships.
 
    Although this suffices for now, it seems that there's some logic which could be refactored
-   out of ADDER16_check's proof to improve the proof-time for this theorem. *)
-theorem ADDER_Hex_check_carry: "(s, c :: bit) = ADDER_Hex a b c2 \<longrightarrow>
-  (Hex_to_nat a) + (Hex_to_nat b) + (bit_to_nat c2) = 16*(bit_to_nat c) + (Hex_to_nat s)"
-  apply (case_tac a; case_tac c; case_tac c2; case_tac x1; case_tac x2; case_tac x3; case_tac x4)
+   out of ADDER16_check's proof to improve the proof-time for this theorem.
+
+   But, hey, it's only 31 cases as opposed to 1024, so that's good, right? *)
+lemma ADDER_Hex_check4: "(s,c) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = 16*(bit_to_nat c) + (Hex_to_nat s)"
+  apply (case_tac a; case_tac x1; case_tac x2; case_tac x3; case_tac x4)
   apply (simp add: ADDER_Hex_0b0)
   apply (case_tac b; case_tac x1a; case_tac x2a; case_tac x3a; case_tac x4a; simp)+
   done
 
-corollary ADDER_Hex_check4: "(s,c) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = 16*(bit_to_nat c) + (Hex_to_nat s)"
-  using ADDER_Hex_check_carry by fastforce
-
 corollary ADDER_Hex_check2: "(s,0 :: bit) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = (Hex_to_nat s)"
-  using ADDER_Hex_check_carry by fastforce
+  by (simp add: ADDER_Hex_check4)
+
+lemma ADDER_Hex_check2b: "(s,c :: bit) = ADDER_Hex a b 1
+  \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) + (bit_to_nat 1) = 16*(bit_to_nat c) + (Hex_to_nat s)"
+  apply (case_tac a; case_tac x1; case_tac x2; case_tac x3; case_tac x4)
+  apply (case_tac b)
+  apply (case_tac b; case_tac x1a; case_tac x2a; case_tac x3a; case_tac x4a; simp)+
+  done
+
+theorem ADDER_Hex_check_carry: "(s, c :: bit) = ADDER_Hex a b c2 \<longrightarrow>
+  (Hex_to_nat a) + (Hex_to_nat b) + (bit_to_nat c2) = 16*(bit_to_nat c) + (Hex_to_nat s)"
+proof -
+  have "\<forall>b h ha hb. bit_to_nat 1 + (Hex_to_nat h + Hex_to_nat hb) = 16*bit_to_nat b + Hex_to_nat ha
+    \<or> (ha, b) \<noteq> ADDER_Hex h hb 1"
+    using ADDER_Hex_check2b by fastforce
+  moreover have "0 = c2 \<longrightarrow> Hex_to_nat s + 16*bit_to_nat c = bit_to_nat c2 + (Hex_to_nat a + Hex_to_nat b)
+    \<or> ((s, c) = ADDER_Hex a b c2
+     \<longrightarrow> Hex_to_nat a + Hex_to_nat b + bit_to_nat c2 = 16 * bit_to_nat c + Hex_to_nat s)"
+    by (simp add: ADDER_Hex_check4)
+  ultimately show ?thesis
+    by fastforce
+qed
 
 corollary ADDER_Hex_check3: "(s,1 :: bit) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = 16 + (Hex_to_nat s)"
   using ADDER_Hex_check_carry by fastforce
@@ -633,7 +720,8 @@ proof - (* 5 ms *)
     by simp
 qed
 
-corollary ADDER_Hex_small: "(Hex_to_nat a) + (Hex_to_nat b) < 16 \<longrightarrow> (s,0 :: bit) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = (Hex_to_nat s)"
+corollary ADDER_Hex_small: "(Hex_to_nat a) + (Hex_to_nat b) < 16 \<longrightarrow> (s,0 :: bit) = ADDER_Hex a b 0
+  \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = (Hex_to_nat s)"
   using ADDER_Hex_check2 by blast
 
 theorem ADDER_Hex_comm: "ADDER_Hex a b c = ADDER_Hex b a c"
@@ -681,22 +769,22 @@ proof (cases a)
       by (simp add: A)
     moreover have A3: "Word_to_nat b = (Hex_to_nat b4) + 16*(Hex_to_nat b3) + 256*(Hex_to_nat b2) + 4096*(Hex_to_nat b1)"
       by (simp add: B)
-    moreover have AA4: "(Hex_to_nat a4) + (Hex_to_nat b4) = (Hex_to_nat ?s4) + 16*(if 1=?c4 then 1 else 0)"
-      by (smt (verit) ADDER_Hex_check2 ADDER_Hex_check3 add.commute add.right_neutral bit.exhaust mult_1_right mult_zero_right prod.collapse)
-    moreover have AA3: "(Hex_to_nat a3) + (Hex_to_nat b3) + (if 1=?c4 then 1 else 0)
-                   = (Hex_to_nat ?s3) + 16*(if 1=?c3 then 1 else 0)"
-      by (smt (verit, best) ADDER_Hex_check2 ADDER_Hex_check3 ADDER_Hex_check_carry2 ADDER_Hex_check_carry3 add.commute add_cancel_right_right bit.exhaust mult.comm_neutral mult_eq_0_iff prod.collapse)
-    moreover have AA2: "(Hex_to_nat a2) + (Hex_to_nat b2) + (if 1=?c3 then 1 else 0)
-                   = (Hex_to_nat ?s2) + 16*(if 1=?c2 then 1 else 0)"
-      by (smt (verit, best) ADDER_Hex_check2 ADDER_Hex_check3 ADDER_Hex_check_carry2 ADDER_Hex_check_carry3 add.commute add_cancel_right_right bit.exhaust mult.comm_neutral mult_eq_0_iff prod.collapse)
-    moreover have AA1: "(Hex_to_nat a1) + (Hex_to_nat b1) + (if 1=?c2 then 1 else 0)
-                   = (Hex_to_nat ?s1) + 16*(if 1=?c1 then 1 else 0)"
-      by (smt (verit, best) ADDER_Hex_check2 ADDER_Hex_check3 ADDER_Hex_check_carry2 ADDER_Hex_check_carry3 add.commute add_cancel_right_right bit.exhaust mult.comm_neutral mult_eq_0_iff prod.collapse)
-    moreover have AA5: "(Hex_to_nat a2) + (Hex_to_nat b2) + (if 1=?c3 then 1 else 0)
+    moreover have AA4: "(Hex_to_nat a4) + (Hex_to_nat b4) = (Hex_to_nat ?s4) + 16*(bit_to_nat ?c4)"
+      by (metis ADDER_Hex_check4 add.commute prod.collapse)
+    moreover have AA3: "(Hex_to_nat a3) + (Hex_to_nat b3) + (bit_to_nat ?c4)
+                   = (Hex_to_nat ?s3) + 16*(bit_to_nat ?c3)"
+      by (metis ADDER_Hex_check_carry add.commute surjective_pairing)
+    moreover have AA2: "(Hex_to_nat a2) + (Hex_to_nat b2) + (bit_to_nat ?c3)
+                   = (Hex_to_nat ?s2) + 16*(bit_to_nat ?c2)"
+      by (metis ADDER_Hex_check_carry add.commute prod.exhaust_sel)
+    moreover have AA1: "(Hex_to_nat a1) + (Hex_to_nat b1) + (bit_to_nat ?c2)
+                   = (Hex_to_nat ?s1) + 16*(bit_to_nat ?c1)"
+      by (metis ADDER_Hex_check_carry add.commute prod.exhaust_sel)
+    moreover have AA5: "(Hex_to_nat a2) + (Hex_to_nat b2) + (bit_to_nat ?c3)
                        + (16 :: nat)*((Hex_to_nat a1) + (Hex_to_nat b1))
                   = (Hex_to_nat ?s2)
                     + (16 :: nat)*((Hex_to_nat ?s1) 
-                                   + (16 :: nat)*(if 1=?c1 then (1 :: nat) else (0 :: nat)))"
+                                   + (16 :: nat)*(bit_to_nat ?c1))"
       using AA1 AA2 add.commute add.left_commute distrib_left_numeral by auto
     ultimately have A4: "(Hex_to_nat a4) + (Hex_to_nat b4) 
                     + (16 :: nat)*((Hex_to_nat a3) + (Hex_to_nat b3)
@@ -706,7 +794,7 @@ proof (cases a)
                    + (16 :: nat)*((Hex_to_nat ?s3)
                          + (16 :: nat)*((Hex_to_nat ?s2) 
                                 + (16 :: nat)*((Hex_to_nat ?s1) 
-                                      + (16 :: nat)*(if 1=?c1 then (1 :: nat) else (0 :: nat)))))"
+                                      + (16 :: nat)*(bit_to_nat ?c1))))"
       by auto
     have "(Word_to_nat a)
              + (Hex_to_nat b4) + 16*(Hex_to_nat b3)
@@ -715,12 +803,12 @@ proof (cases a)
            = (Hex_to_nat ?s4)
              + 16*(Hex_to_nat ?s3)
              + 256*(Hex_to_nat ?s2)
-             + 4096*((Hex_to_nat ?s1) + 16*(if 1 = ?c1 then 1 else 0))"
+             + 4096*((Hex_to_nat ?s1) + 16*(bit_to_nat ?c1))"
       using A4 nat_distrib A Word_to_nat.simps by auto
-    then have "(Word_to_nat a) + (Word_to_nat b) = (Word_to_nat (ADDER16 a b)) + 4096*16*(if 1 = ?c1 then 1 else 0)"
+    then have "(Word_to_nat a) + (Word_to_nat b) = (Word_to_nat (ADDER16 a b)) + 4096*16*(bit_to_nat ?c1)"
       using A1 A3 add.assoc by simp
     then have "(((Word_to_nat a) + (Word_to_nat b)) :: nat) mod (65536 :: nat)
-               = (((Word_to_nat (ADDER16 a b)) + (4096 :: nat)*16*(if 1 = ?c1 then 1 else 0)) :: nat) mod (65536 :: nat)"
+               = (((Word_to_nat (ADDER16 a b)) + (4096 :: nat)*16*(bit_to_nat ?c1)) :: nat) mod (65536 :: nat)"
       by force
     then have "((Word_to_nat a) + (Word_to_nat b)) mod 65536
                = (Word_to_nat (ADDER16 a b)) mod 65536"
@@ -735,68 +823,6 @@ qed
 
 theorem ADDER16_comm: "ADDER16 x y = ADDER16 y x"
   by (case_tac x; case_tac y) (simp add: ADDER_Hex_comm)
-
-theorem Word_to_nat_to_Word: "nat_to_Word (Word_to_nat a) = a"
-proof (cases a)
-  case A: (Word a1 a2 a3 a4)
-  have A1: "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 4096) mod 16 = (Hex_to_nat a1)"
-  proof-
-    have "(Hex_to_nat a4) < 16 \<and> (Hex_to_nat a3) < 16 \<and> Hex_to_nat a2 < 16" 
-      using Hex_unsigned_max by auto
-    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) \<le> 15 + 16*15 + 256*15"
-      by linarith
-    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) < 4096" by simp
-    then show ?thesis
-      by simp
-  qed
-  then have N1: "nat_to_Hex((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 4096) mod 16) = a1" using Hex_to_nat_to_Hex by auto
-  have "((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256 = (Hex_to_nat a2) + 16*(Hex_to_nat a1)"
-  proof-
-    have "(Hex_to_nat a4) < 16 \<and> (Hex_to_nat a3) < 16" using Hex_unsigned_max by auto
-    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) \<le> 15 + 16*15" by linarith
-    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) \<le> 255" by auto
-    moreover have "((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) =
-     (((Hex_to_nat a4) + 16*(Hex_to_nat a3)) + 256*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))"
-    by simp
-    ultimately show ?thesis
-      using Euclidean_Rings.div_eq_0_iff div_mult_self2 eval_nat_numeral(2) less_Suc_eq_le by linarith
-  qed
-  then have A2: "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256) mod 16 = (Hex_to_nat a2)"
-    using Hex_to_nat_mod16 by presburger
-  then have N2: "nat_to_Hex((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256) mod 16) = a2" using Hex_to_nat_to_Hex by auto
-
-  have A3: "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16 = Hex_to_nat a3"
-  proof-
-    have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)
-        = (Hex_to_nat a4) + 16*(Hex_to_nat a3) + (16*16)*(Hex_to_nat a2) + (16*256)*(Hex_to_nat a1)" by auto
-    then have "(Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)
-        = (Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*(Hex_to_nat a2) + 256*(Hex_to_nat a1))" by auto
-    then have "((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) = (((Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))))"
-      by auto
-    moreover have "((Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))) div 16 = ((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1)))"
-      by (metis Hex_to_nat_mod16 div_mult_self2 mod_eq_self_iff_div_eq_0 nat_arith.rule0 zero_neq_numeral)
-    moreover have "((Hex_to_nat a3) + 16*((Hex_to_nat a2) + 16*(Hex_to_nat a1))) mod 16 = (Hex_to_nat a3)"
-      using Hex_to_nat_mod16 by presburger
-    ultimately show ?thesis 
-      by presburger
-  qed
-  then have "(((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16 = Hex_to_nat a3"
-    by auto
-  then have N3: "nat_to_Hex((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16) = a3"
-    using Hex_to_nat_to_Hex by presburger
-  have "((Hex_to_nat a4) + 16*((Hex_to_nat a3) + 16*(Hex_to_nat a2) + 256*(Hex_to_nat a1))) mod 16 = Hex_to_nat a4"
-    using Hex_to_nat_mod16 by presburger
-  have A4: "(Hex_to_nat a4 + 16 * Hex_to_nat a3 + 256 * Hex_to_nat a2 + 4096 * Hex_to_nat a1) mod 16 = Hex_to_nat a4"
-    by (smt (verit, del_insts) \<open>(Hex_to_nat a4 + 16 * (Hex_to_nat a3 + 16 * Hex_to_nat a2 + 256 * Hex_to_nat a1)) mod 16 = Hex_to_nat a4\<close> ab_semigroup_add_class.add_ac(1) distrib_left_numeral mult_numeral_left_semiring_numeral semiring_norm(12) semiring_norm(13))
-  then have N4: "nat_to_Hex (((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) mod 16) = a4"
-    using Hex_to_nat_to_Hex by presburger
-  have "nat_to_Word ((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) = Word (nat_to_Hex ((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 4096) mod 16)) (nat_to_Hex ((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 256) mod 16))
-  (nat_to_Hex ((((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) div 16) mod 16)) (nat_to_Hex (((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) mod 16))" using A N1 N2 N3 N4 Hex_to_nat_to_Hex by auto
-  then have "nat_to_Word ((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) = Word a1 a2 a3 a4" using A N1 N2 N3 N4 Hex_to_nat_to_Hex by auto
-  then have "nat_to_Word ((Hex_to_nat a4) + 16*(Hex_to_nat a3) + 256*(Hex_to_nat a2) + 4096*(Hex_to_nat a1)) = a" using A by auto
-  then show ?thesis
-    using A Word_to_nat.simps by presburger
-qed
 
 lemma Word_to_nat_injective: "Word_to_nat a = Word_to_nat b \<Longrightarrow> a = b"
   by (metis Word_to_nat_to_Word)
