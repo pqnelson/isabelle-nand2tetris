@@ -676,7 +676,7 @@ lemma ADDER_Hex_a00: "ADDER_Hex a (Hex 0 0 0 0) 0 = (a, 0)"
 lemma ADDER_Hex_check4: "(s,c) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = 16*(bit_to_nat c) + (Hex_to_nat s)"
   apply (case_tac a; case_tac x1; case_tac x2; case_tac x3; case_tac x4)
   apply (simp add: ADDER_Hex_0b0)
-  apply (case_tac b; case_tac x1a; case_tac x2a; case_tac x3a; case_tac x4a; simp)+
+  apply (case_tac b; case_tac x1a; case_tac x2a; case_tac x3a; case_tac x4a; fastforce)+
   done
 
 corollary ADDER_Hex_check2: "(s,0 :: bit) = ADDER_Hex a b 0 \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) = (Hex_to_nat s)"
@@ -685,8 +685,7 @@ corollary ADDER_Hex_check2: "(s,0 :: bit) = ADDER_Hex a b 0 \<longrightarrow> (H
 lemma ADDER_Hex_check2b: "(s,c :: bit) = ADDER_Hex a b 1
   \<longrightarrow> (Hex_to_nat a) + (Hex_to_nat b) + (bit_to_nat 1) = 16*(bit_to_nat c) + (Hex_to_nat s)"
   apply (case_tac a; case_tac x1; case_tac x2; case_tac x3; case_tac x4)
-  apply (case_tac b)
-  apply (case_tac b; case_tac x1a; case_tac x2a; case_tac x3a; case_tac x4a; simp)+
+  apply (case_tac b; case_tac x1a; case_tac x2a; case_tac x3a; case_tac x4a; fastforce)+
   done
 
 theorem ADDER_Hex_check_carry: "(s, c :: bit) = ADDER_Hex a b c2 \<longrightarrow>
